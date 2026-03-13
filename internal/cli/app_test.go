@@ -83,6 +83,22 @@ func TestRunPowerShellCompletionDoesNotRequireConfig(t *testing.T) {
 	}
 }
 
+func TestCompletionPrioritizesFrequentCommands(t *testing.T) {
+	var stdout bytes.Buffer
+	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{}, BuildInfo{})
+
+	err := app.Run(context.Background(), []string{"completion", "zsh"})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+
+	output := stdout.String()
+	expected := "'new:Upload text, file, stdin, or clipboard content'\n    'text:Upload text content'\n    'url:Upload URL content'\n    'md:Upload Markdown as HTML'"
+	if !strings.Contains(output, expected) {
+		t.Fatalf("unexpected subcommand ordering: %q", output)
+	}
+}
+
 func TestRunCompletionRejectsUnsupportedShell(t *testing.T) {
 	app := NewApp(os.Stdin, &bytes.Buffer{}, &bytes.Buffer{}, BuildInfo{})
 

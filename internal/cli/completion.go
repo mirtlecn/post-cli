@@ -39,7 +39,7 @@ _post_completion() {
   fi
 
   if [[ ${COMP_CWORD} -eq 1 ]]; then
-    COMPREPLY=($(compgen -W "new md qr file html text url ls export rm completion version help" -- "${current}"))
+    COMPREPLY=($(compgen -W "new text md file url html qr ls export rm version completion help" -- "${current}"))
     return 0
   fi
 
@@ -60,13 +60,13 @@ _post_completion() {
 
   case "${command}" in
     new)
-      COMPREPLY=($(compgen -W "-s --slug -t --ttl -u --update -y --no-confirm -x --export -f --file -c --convert" -- "${current}"))
+      COMPREPLY=($(compgen -W "-f --file -s --slug -t --ttl -y --no-confirm -u --update -x --export -c --convert" -- "${current}"))
       ;;
     md|qr|html|text|url)
-      COMPREPLY=($(compgen -W "-s --slug -t --ttl -u --update -y --no-confirm -x --export -f --file" -- "${current}"))
+      COMPREPLY=($(compgen -W "-f --file -s --slug -t --ttl -y --no-confirm -u --update -x --export" -- "${current}"))
       ;;
     file)
-      COMPREPLY=($(compgen -W "-s --slug -t --ttl -u --update -y --no-confirm -x --export -f --file" -- "${current}"))
+      COMPREPLY=($(compgen -W "-f --file -s --slug -t --ttl -y --no-confirm -u --update -x --export" -- "${current}"))
       ;;
     ls|rm)
       COMPREPLY=($(compgen -W "-x --export" -- "${current}"))
@@ -95,39 +95,39 @@ _post() {
   local -a subcommands
   subcommands=(
     'new:Upload text, file, stdin, or clipboard content'
-    'md:Upload Markdown as HTML'
-    'qr:Upload text as QR code'
-    'file:Upload a file path directly'
-    'html:Upload HTML content'
     'text:Upload text content'
     'url:Upload URL content'
+    'md:Upload Markdown as HTML'
+    'file:Upload a file path directly'
+    'html:Upload HTML content'
+    'qr:Upload text as QR code'
     'ls:List all posts or show a specific post'
     'export:Export all posts or one post with full content'
     'rm:Delete a post'
-    'completion:Print shell completion script'
     'version:Show build version information'
+    'completion:Print shell completion script'
     'help:Show help'
   )
 
   local -a new_options
   new_options=(
+    '(-f --file)'{-f,--file}'[Read content from file]:file:_files'
     '(-s --slug)'{-s,--slug}'[Custom slug/path]:slug: '
     '(-t --ttl)'{-t,--ttl}'[Expiration time in minutes]:minutes: '
-    '(-u --update)'{-u,--update}'[Overwrite if slug already exists]'
     '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]'
+    '(-u --update)'{-u,--update}'[Overwrite if slug already exists]'
     '(-x --export)'{-x,--export}'[Return full create/update response]'
-    '(-f --file)'{-f,--file}'[Read content from file]:file:_files'
     '(-c --convert)'{-c,--convert}'[Convert/type before uploading]:convert:(html md2html url text qrcode file)'
   )
 
   local -a shortcut_options
   shortcut_options=(
+    '(-f --file)'{-f,--file}'[Read content from file]:file:_files'
     '(-s --slug)'{-s,--slug}'[Custom slug/path]:slug: '
     '(-t --ttl)'{-t,--ttl}'[Override expiration time in minutes]:minutes: '
-    '(-u --update)'{-u,--update}'[Overwrite if slug already exists]'
     '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]'
+    '(-u --update)'{-u,--update}'[Overwrite if slug already exists]'
     '(-x --export)'{-x,--export}'[Return full create/update response]'
-    '(-f --file)'{-f,--file}'[Read content from file]:file:_files'
   )
 
   case $words[2] in
@@ -182,9 +182,9 @@ const powerShellCompletion = `Register-ArgumentCompleter -Native -CommandName po
     param($wordToComplete, $commandAst, $cursorPosition)
 
     $tokens = $commandAst.CommandElements | ForEach-Object { $_.Extent.Text }
-    $subcommands = @('new', 'md', 'qr', 'file', 'html', 'text', 'url', 'ls', 'export', 'rm', 'completion', 'version', 'help')
-    $newOptions = @('-s', '--slug', '-t', '--ttl', '-u', '--update', '-y', '--no-confirm', '-x', '--export', '-f', '--file', '-c', '--convert')
-    $shortcutOptions = @('-s', '--slug', '-t', '--ttl', '-u', '--update', '-y', '--no-confirm', '-x', '--export', '-f', '--file')
+    $subcommands = @('new', 'text', 'md', 'file', 'url', 'html', 'qr', 'ls', 'export', 'rm', 'version', 'completion', 'help')
+    $newOptions = @('-f', '--file', '-s', '--slug', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-c', '--convert')
+    $shortcutOptions = @('-f', '--file', '-s', '--slug', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export')
     $lsOptions = @('-x', '--export')
     $shells = @('bash', 'zsh', 'powershell')
     $convertValues = @('html', 'md2html', 'url', 'text', 'qrcode', 'file')
