@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/mirtle/post-cli/internal/api"
@@ -50,6 +52,8 @@ type createResponse struct {
 	ShortURL string `json:"surl"`
 }
 
+var uriSchemePattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*$`)
+
 func NewService(client APIClient, clipboardService clipboard.Service, stdin io.Reader, stderr io.Writer) *Service {
 	return &Service{
 		client:    client,
@@ -66,6 +70,9 @@ func (service *Service) New(ctx context.Context, options NewOptions) (Result, er
 	}
 
 	requestType := resolveRequestType(options.Convert)
+	if err := validateURLContent(requestType, content); err != nil {
+		return Result{}, err
+	}
 
 	if !options.SkipConfirm && options.StdinTTY && options.Confirm != nil {
 		writeConfirmPreview(service.stderr, label, options, requestType)
@@ -203,6 +210,34 @@ func resolveRequestType(convert string) string {
 	default:
 		return ""
 	}
+}
+
+func validateURLContent(requestType string, content string) error {
+	if requestType != "url" {
+		return nil
+	}
+
+	trimmedContent := strings.TrimSpace(content)
+	if !hasValidURIScheme(trimmedContent) {
+		return fmt.Errorf("invalid URL: missing or invalid URI scheme")
+	}
+
+	parsedURL, err := url.Parse(trimmedContent)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+	if parsedURL.Scheme == "" {
+		return fmt.Errorf("invalid URL: missing or invalid URI scheme")
+	}
+	return nil
+}
+
+func hasValidURIScheme(content string) bool {
+	schemeSeparatorIndex := strings.Index(content, ":")
+	if schemeSeparatorIndex <= 0 {
+		return false
+	}
+	return uriSchemePattern.MatchString(content[:schemeSeparatorIndex])
 }
 
 func writeConfirmPreview(writer io.Writer, label string, options NewOptions, requestType string) {

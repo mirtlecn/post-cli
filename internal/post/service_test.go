@@ -95,6 +95,86 @@ func TestNewUsesArguments(t *testing.T) {
 	}
 }
 
+func TestNewAcceptsStandardURLContent(t *testing.T) {
+	service := NewService(&stubClient{
+		postJSONFunc: func(_ context.Context, _ string, payload api.JSONRequest, _ bool) ([]byte, error) {
+			if payload.Type != "url" {
+				t.Fatalf("unexpected type: %s", payload.Type)
+			}
+			if payload.URL != "https://example.com/docs" {
+				t.Fatalf("unexpected url: %s", payload.URL)
+			}
+			return []byte(`{"surl":"https://sho.rt/url"}`), nil
+		},
+	}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+
+	result, err := service.New(context.Background(), NewOptions{
+		Args:        []string{"https://example.com/docs"},
+		Convert:     "url",
+		Method:      http.MethodPost,
+		SkipConfirm: true,
+		StdinTTY:    true,
+	})
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	if result.Stdout != "https://sho.rt/url\n" {
+		t.Fatalf("unexpected stdout: %q", result.Stdout)
+	}
+}
+
+func TestNewAcceptsCustomURIScheme(t *testing.T) {
+	service := NewService(&stubClient{
+		postJSONFunc: func(_ context.Context, _ string, payload api.JSONRequest, _ bool) ([]byte, error) {
+			if payload.URL != "obsidian://open?vault=demo" {
+				t.Fatalf("unexpected url: %s", payload.URL)
+			}
+			return []byte(`{"surl":"https://sho.rt/custom"}`), nil
+		},
+	}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+
+	_, err := service.New(context.Background(), NewOptions{
+		Args:        []string{"obsidian://open?vault=demo"},
+		Convert:     "url",
+		Method:      http.MethodPost,
+		SkipConfirm: true,
+		StdinTTY:    true,
+	})
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+}
+
+func TestNewRejectsURLWithoutScheme(t *testing.T) {
+	service := NewService(&stubClient{}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+
+	_, err := service.New(context.Background(), NewOptions{
+		Args:        []string{"example.com/path"},
+		Convert:     "url",
+		Method:      http.MethodPost,
+		SkipConfirm: true,
+		StdinTTY:    true,
+	})
+	if err == nil || err.Error() != "invalid URL: missing or invalid URI scheme" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestNewRejectsURLWithInvalidScheme(t *testing.T) {
+	service := NewService(&stubClient{}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+
+	_, err := service.New(context.Background(), NewOptions{
+		Args:        []string{"1demo://open"},
+		Convert:     "url",
+		Method:      http.MethodPost,
+		SkipConfirm: true,
+		StdinTTY:    true,
+	})
+	if err == nil || err.Error() != "invalid URL: missing or invalid URI scheme" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestNewUsesClipboardWhenNoArgs(t *testing.T) {
 	service := NewService(&stubClient{
 		postJSONFunc: func(_ context.Context, _ string, payload api.JSONRequest, _ bool) ([]byte, error) {
