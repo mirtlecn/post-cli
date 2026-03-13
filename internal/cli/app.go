@@ -27,17 +27,6 @@ func NewApp(stdin *os.File, stdout io.Writer, stderr io.Writer) *App {
 }
 
 func (app *App) Run(ctx context.Context, args []string) error {
-	cfg, err := config.Load()
-	if err != nil {
-		return err
-	}
-
-	host := cfg.Host
-	token := cfg.Token
-	if host == "" || token == "" {
-		return fmt.Errorf("POST_HOST and POST_TOKEN must be set via environment variables or config file (%s)", cfg.ConfigPath)
-	}
-
 	stdinTTY := isTerminal(app.stdin)
 	if !stdinTTY && shouldPrependNew(args) {
 		args = append([]string{"new"}, args...)
@@ -49,17 +38,36 @@ func (app *App) Run(ctx context.Context, args []string) error {
 		args = args[1:]
 	}
 
-	client := api.NewClient(host, token, http.DefaultClient)
-	service := post.NewService(client, clipboard.NewSystemService(), app.stdin, app.stderr)
-
 	switch command {
+	case "completion":
+		return app.runCompletion(args)
 	case "new":
+		host, token, _, err := loadRuntimeConfig()
+		if err != nil {
+			return err
+		}
+		service := newPostService(host, token, app.stdin, app.stderr)
 		return app.runNew(ctx, service, args, stdinTTY, host)
 	case "ls":
+		host, token, _, err := loadRuntimeConfig()
+		if err != nil {
+			return err
+		}
+		service := newPostService(host, token, app.stdin, app.stderr)
 		return app.runList(ctx, service, args)
 	case "export":
+		host, token, _, err := loadRuntimeConfig()
+		if err != nil {
+			return err
+		}
+		service := newPostService(host, token, app.stdin, app.stderr)
 		return app.runExport(ctx, service, args)
 	case "rm":
+		host, token, _, err := loadRuntimeConfig()
+		if err != nil {
+			return err
+		}
+		service := newPostService(host, token, app.stdin, app.stderr)
 		return app.runRemove(ctx, service, args)
 	case "help", "-h", "--help":
 		_, _ = io.WriteString(app.stdout, helpText)
@@ -67,6 +75,27 @@ func (app *App) Run(ctx context.Context, args []string) error {
 	default:
 		return fmt.Errorf("unknown command '%s'. Try: post help", command)
 	}
+}
+
+func loadRuntimeConfig() (string, string, string, error) {
+	cfg, err := config.Load()
+	if err != nil {
+		return "", "", "", err
+	}
+
+	if cfg.Host == "" || cfg.Token == "" {
+		return "", "", cfg.ConfigPath, fmt.Errorf(
+			"POST_HOST and POST_TOKEN must be set via environment variables or config file (%s)",
+			cfg.ConfigPath,
+		)
+	}
+
+	return cfg.Host, cfg.Token, cfg.ConfigPath, nil
+}
+
+func newPostService(host string, token string, stdin *os.File, stderr io.Writer) *post.Service {
+	client := api.NewClient(host, token, http.DefaultClient)
+	return post.NewService(client, clipboard.NewSystemService(), stdin, stderr)
 }
 
 func (app *App) runNew(
@@ -151,6 +180,25 @@ func (app *App) runRemove(ctx context.Context, service *post.Service, args []str
 		return err
 	}
 	_, _ = io.WriteString(app.stdout, output)
+	return nil
+}
+
+func (app *App) runCompletion(args []string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("usage: post completion <bash|zsh>")
+	}
+
+	var script string
+	switch args[0] {
+	case "bash":
+		script = bashCompletion
+	case "zsh":
+		script = zshCompletion
+	default:
+		return fmt.Errorf("unsupported shell '%s'. Try: post completion <bash|zsh>", args[0])
+	}
+
+	_, _ = io.WriteString(app.stdout, script)
 	return nil
 }
 
@@ -256,7 +304,7 @@ func shouldPrependNew(args []string) bool {
 	}
 
 	switch args[0] {
-	case "new", "ls", "export", "rm", "help", "--help", "-h":
+	case "new", "ls", "export", "rm", "help", "completion", "--help", "-h":
 		return false
 	default:
 		return true
@@ -301,6 +349,7 @@ Usage:
   post export <path>           Export one post with full content
   post rm <path>               Delete a post
   post rm -x <path>            Delete a post and return full content
+  post completion <shell>      Print shell completion script
   post help | -h | --help      Show this help
 
 Options for 'new':
@@ -336,6 +385,8 @@ Config file:
   Environment variables override config file values
 
 Examples:
+  post completion bash
+  post completion zsh
   post new hello world
   post new -f ~/notes.txt
   post new -s mycode -f script.sh
@@ -350,4 +401,114 @@ Examples:
   post rm myslug
   post rm -x myslug
   post export myslug
+`
+
+const bashCompletion = `# bash completion for post
+_post_completion() {
+  local current previous command
+  COMPREPLY=()
+  current="${COMP_WORDS[COMP_CWORD]}"
+  previous="${COMP_WORDS[COMP_CWORD-1]}"
+  command=""
+
+  if [[ ${#COMP_WORDS[@]} -gt 1 ]]; then
+    command="${COMP_WORDS[1]}"
+  fi
+
+  if [[ ${COMP_CWORD} -eq 1 ]]; then
+    COMPREPLY=($(compgen -W "new ls export rm completion help" -- "${current}"))
+    return 0
+  fi
+
+  case "${previous}" in
+    -c|--convert)
+      COMPREPLY=($(compgen -W "html md2html url text qrcode file" -- "${current}"))
+      return 0
+      ;;
+    completion)
+      COMPREPLY=($(compgen -W "bash zsh" -- "${current}"))
+      return 0
+      ;;
+    -f|--file)
+      COMPREPLY=($(compgen -f -- "${current}"))
+      return 0
+      ;;
+  esac
+
+  case "${command}" in
+    new)
+      COMPREPLY=($(compgen -W "-s --slug -t --ttl -u --update -y --no-confirm -x --export -f --file -c --convert" -- "${current}"))
+      ;;
+    ls|rm)
+      COMPREPLY=($(compgen -W "-x --export" -- "${current}"))
+      ;;
+    export)
+      COMPREPLY=()
+      ;;
+    completion)
+      COMPREPLY=($(compgen -W "bash zsh" -- "${current}"))
+      ;;
+    help)
+      COMPREPLY=()
+      ;;
+  esac
+}
+
+complete -F _post_completion post
+`
+
+const zshCompletion = `#compdef post
+
+_post() {
+  local -a subcommands
+  subcommands=(
+    'new:Upload text, file, stdin, or clipboard content'
+    'ls:List all posts or show a specific post'
+    'export:Export all posts or one post with full content'
+    'rm:Delete a post'
+    'completion:Print shell completion script'
+    'help:Show help'
+  )
+
+  local -a new_options
+  new_options=(
+    '(-s --slug)'{-s,--slug}'[Custom slug/path]:slug: '
+    '(-t --ttl)'{-t,--ttl}'[Expiration time in minutes]:minutes: '
+    '(-u --update)'{-u,--update}'[Overwrite if slug already exists]'
+    '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]'
+    '(-x --export)'{-x,--export}'[Return full create/update response]'
+    '(-f --file)'{-f,--file}'[Read content from file]:file:_files'
+    '(-c --convert)'{-c,--convert}'[Convert/type before uploading]:convert:(html md2html url text qrcode file)'
+  )
+
+  case $words[2] in
+    new)
+      _arguments -s $new_options '*:text: '
+      ;;
+    ls)
+      _arguments -s '(-x --export)'{-x,--export}'[Return full content]' '*:path: '
+      ;;
+    export)
+      _arguments -s '*:path: '
+      ;;
+    rm)
+      _arguments -s '(-x --export)'{-x,--export}'[Return full content]' '1:path: '
+      ;;
+    completion)
+      _arguments '1:shell:(bash zsh)'
+      ;;
+    *)
+      _arguments \
+        '1:subcommand:->subcommand' \
+        '*::arg:->args'
+      case $state in
+        subcommand)
+          _describe 'subcommand' subcommands
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_post "$@"
 `
