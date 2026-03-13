@@ -12,6 +12,7 @@ import (
 
 	"github.com/mirtle/post-cli/internal/api"
 	"github.com/mirtle/post-cli/internal/clipboard"
+	"github.com/mirtle/post-cli/internal/config"
 	"github.com/mirtle/post-cli/internal/post"
 )
 
@@ -26,10 +27,15 @@ func NewApp(stdin *os.File, stdout io.Writer, stderr io.Writer) *App {
 }
 
 func (app *App) Run(ctx context.Context, args []string) error {
-	host := os.Getenv("POST_HOST")
-	token := os.Getenv("POST_TOKEN")
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+
+	host := cfg.Host
+	token := cfg.Token
 	if host == "" || token == "" {
-		return fmt.Errorf("POST_HOST and POST_TOKEN environment variables must be set")
+		return fmt.Errorf("POST_HOST and POST_TOKEN must be set via environment variables or config file (%s)", cfg.ConfigPath)
 	}
 
 	stdinTTY := isTerminal(app.stdin)
@@ -318,6 +324,16 @@ Options for 'ls' and 'rm':
 Environment variables:
   POST_HOST    Base endpoint URL (e.g. https://example.com)
   POST_TOKEN   Bearer token
+  POST_CONFIG  Optional config file path override
+
+Config file:
+  Default path: ~/.config/post/config.json
+  JSON format:
+    {
+      "host": "https://example.com",
+      "token": "your-token"
+    }
+  Environment variables override config file values
 
 Examples:
   post new hello world
