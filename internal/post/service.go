@@ -104,10 +104,12 @@ func (service *Service) New(ctx context.Context, options NewOptions) (Result, er
 	}
 
 	result := Result{}
-	if err := service.clipboard.WriteText(response.ShortURL); err != nil {
-		result.Stderr += fmt.Sprintf("warning: failed to copy to clipboard: %s\n", err)
-	} else {
-		result.Stderr += fmt.Sprintf("Copied to clipboard: %s\n", response.ShortURL)
+	if service.clipboard.CanWriteText() {
+		if err := service.clipboard.WriteText(response.ShortURL); err != nil {
+			result.Stderr += fmt.Sprintf("warning: failed to copy to clipboard: %s\n", err)
+		} else {
+			result.Stderr += fmt.Sprintf("Copied to clipboard: %s\n", response.ShortURL)
+		}
 	}
 
 	if options.Export {
@@ -186,7 +188,7 @@ func (service *Service) resolveContent(options NewOptions) (string, string, erro
 
 	content, err := service.clipboard.ReadText()
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("%w; provide text, -f, or pipe stdin instead", err)
 	}
 	if content == "" {
 		return "", "", fmt.Errorf("content is empty")

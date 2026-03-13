@@ -38,6 +38,7 @@ func (client *stubClient) UploadFile(ctx context.Context, method string, filePat
 type stubClipboard struct {
 	readValue string
 	readErr   error
+	canWrite  bool
 	writeErr  error
 	written   string
 }
@@ -49,6 +50,10 @@ func (clipboard *stubClipboard) ReadText() (string, error) {
 	return clipboard.readValue, nil
 }
 
+func (clipboard *stubClipboard) CanWriteText() bool {
+	return clipboard.canWrite
+}
+
 func (clipboard *stubClipboard) WriteText(text string) error {
 	clipboard.written = text
 	return clipboard.writeErr
@@ -56,7 +61,7 @@ func (clipboard *stubClipboard) WriteText(text string) error {
 
 func TestNewUsesArguments(t *testing.T) {
 	stderr := &bytes.Buffer{}
-	clipboard := &stubClipboard{}
+	clipboard := &stubClipboard{canWrite: true}
 	service := NewService(&stubClient{
 		postJSONFunc: func(_ context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
 			if method != http.MethodPost {
@@ -191,7 +196,7 @@ func TestNewReturnsClipboardWriteWarning(t *testing.T) {
 		postJSONFunc: func(_ context.Context, _ string, _ api.JSONRequest, _ bool) ([]byte, error) {
 			return []byte(`{"surl":"https://sho.rt/abc"}`), nil
 		},
-	}, &stubClipboard{writeErr: errors.New("clipboard unavailable")}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+	}, &stubClipboard{canWrite: true, writeErr: errors.New("clipboard unavailable")}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
 
 	result, err := service.New(context.Background(), NewOptions{
 		Args:        []string{"hello"},
@@ -208,6 +213,28 @@ func TestNewReturnsClipboardWriteWarning(t *testing.T) {
 	}
 }
 
+func TestNewSkipsClipboardWriteWhenUnavailable(t *testing.T) {
+	service := NewService(&stubClient{
+		postJSONFunc: func(_ context.Context, _ string, _ api.JSONRequest, _ bool) ([]byte, error) {
+			return []byte(`{"surl":"https://sho.rt/abc"}`), nil
+		},
+	}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+
+	result, err := service.New(context.Background(), NewOptions{
+		Args:        []string{"hello"},
+		Method:      http.MethodPost,
+		SkipConfirm: true,
+		StdinTTY:    true,
+	})
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	if result.Stderr != "" {
+		t.Fatalf("expected no clipboard stderr, got: %q", result.Stderr)
+	}
+}
+
 func TestNewFailsWhenClipboardReadFails(t *testing.T) {
 	service := NewService(&stubClient{}, &stubClipboard{readErr: errors.New("clipboard unavailable")}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
 
@@ -216,7 +243,7 @@ func TestNewFailsWhenClipboardReadFails(t *testing.T) {
 		SkipConfirm: true,
 		StdinTTY:    true,
 	})
-	if err == nil || err.Error() != "clipboard unavailable" {
+	if err == nil || err.Error() != "clipboard unavailable; provide text, -f, or pipe stdin instead" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

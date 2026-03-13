@@ -2,49 +2,59 @@
 
 package clipboard
 
-import (
-	"fmt"
-	"sync"
-
-	systemclipboard "golang.design/x/clipboard"
-)
+var windowsClipboardCommands = []commandCandidate{
+	{name: "powershell.exe", args: []string{"-NoProfile", "-NonInteractive", "-Command"}},
+	{name: "powershell", args: []string{"-NoProfile", "-NonInteractive", "-Command"}},
+	{name: "pwsh.exe", args: []string{"-NoProfile", "-NonInteractive", "-Command"}},
+	{name: "pwsh", args: []string{"-NoProfile", "-NonInteractive", "-Command"}},
+}
 
 type SystemService struct{}
-
-var initializeOnce sync.Once
-var initializeError error
 
 func NewSystemService() *SystemService {
 	return &SystemService{}
 }
 
 func (service *SystemService) ReadText() (string, error) {
-	if err := initializeClipboard(); err != nil {
+	command, err := resolveCommand(windowsReadCandidates(), "no PowerShell clipboard command found")
+	if err != nil {
 		return "", err
 	}
 
-	content := systemclipboard.Read(systemclipboard.FmtText)
-	if len(content) == 0 {
-		return "", fmt.Errorf("clipboard is empty")
-	}
-	return string(content), nil
+	return readTextWithCommand(command)
+}
+
+func (service *SystemService) CanWriteText() bool {
+	return canResolveCommand(windowsWriteCandidates())
 }
 
 func (service *SystemService) WriteText(text string) error {
-	if err := initializeClipboard(); err != nil {
+	command, err := resolveCommand(windowsWriteCandidates(), "no PowerShell clipboard command found")
+	if err != nil {
 		return err
 	}
 
-	systemclipboard.Write(systemclipboard.FmtText, []byte(text))
-	return nil
+	return writeTextWithCommand(command, text)
 }
 
-func initializeClipboard() error {
-	initializeOnce.Do(func() {
-		initializeError = systemclipboard.Init()
-	})
-	if initializeError != nil {
-		return fmt.Errorf("clipboard unavailable: %w", initializeError)
+func windowsReadCandidates() []commandCandidate {
+	candidates := make([]commandCandidate, 0, len(windowsClipboardCommands))
+	for _, candidate := range windowsClipboardCommands {
+		candidates = append(candidates, commandCandidate{
+			name: candidate.name,
+			args: append(append([]string{}, candidate.args...), "Get-Clipboard -Raw"),
+		})
 	}
-	return nil
+	return candidates
+}
+
+func windowsWriteCandidates() []commandCandidate {
+	candidates := make([]commandCandidate, 0, len(windowsClipboardCommands))
+	for _, candidate := range windowsClipboardCommands {
+		candidates = append(candidates, commandCandidate{
+			name: candidate.name,
+			args: append(append([]string{}, candidate.args...), "Set-Clipboard -Value ([Console]::In.ReadToEnd())"),
+		})
+	}
+	return candidates
 }

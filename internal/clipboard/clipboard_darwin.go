@@ -2,49 +2,38 @@
 
 package clipboard
 
-import (
-	"fmt"
-	"sync"
+var darwinReadCandidates = []commandCandidate{
+	{name: "pbpaste"},
+}
 
-	systemclipboard "golang.design/x/clipboard"
-)
+var darwinWriteCandidates = []commandCandidate{
+	{name: "pbcopy"},
+}
 
 type SystemService struct{}
-
-var initializeOnce sync.Once
-var initializeError error
 
 func NewSystemService() *SystemService {
 	return &SystemService{}
 }
 
 func (service *SystemService) ReadText() (string, error) {
-	if err := initializeClipboard(); err != nil {
+	command, err := resolveCommand(darwinReadCandidates, "pbpaste not found")
+	if err != nil {
 		return "", err
 	}
 
-	content := systemclipboard.Read(systemclipboard.FmtText)
-	if len(content) == 0 {
-		return "", fmt.Errorf("clipboard is empty")
-	}
-	return string(content), nil
+	return readTextWithCommand(command)
+}
+
+func (service *SystemService) CanWriteText() bool {
+	return canResolveCommand(darwinWriteCandidates)
 }
 
 func (service *SystemService) WriteText(text string) error {
-	if err := initializeClipboard(); err != nil {
+	command, err := resolveCommand(darwinWriteCandidates, "pbcopy not found")
+	if err != nil {
 		return err
 	}
 
-	systemclipboard.Write(systemclipboard.FmtText, []byte(text))
-	return nil
-}
-
-func initializeClipboard() error {
-	initializeOnce.Do(func() {
-		initializeError = systemclipboard.Init()
-	})
-	if initializeError != nil {
-		return fmt.Errorf("clipboard unavailable: %w", initializeError)
-	}
-	return nil
+	return writeTextWithCommand(command, text)
 }

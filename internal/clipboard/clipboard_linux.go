@@ -2,11 +2,17 @@
 
 package clipboard
 
-import (
-	"bytes"
-	"fmt"
-	"os/exec"
-)
+var linuxReadCandidates = []commandCandidate{
+	{name: "wl-paste", args: []string{"--no-newline"}},
+	{name: "xclip", args: []string{"-selection", "clipboard", "-o"}},
+	{name: "xsel", args: []string{"--clipboard", "--output"}},
+}
+
+var linuxWriteCandidates = []commandCandidate{
+	{name: "wl-copy"},
+	{name: "xclip", args: []string{"-selection", "clipboard"}},
+	{name: "xsel", args: []string{"--clipboard", "--input"}},
+}
 
 type SystemService struct{}
 
@@ -15,60 +21,23 @@ func NewSystemService() *SystemService {
 }
 
 func (service *SystemService) ReadText() (string, error) {
-	command, args, err := readClipboardCommand()
+	command, err := resolveCommand(linuxReadCandidates, "no clipboard read command found")
 	if err != nil {
 		return "", err
 	}
 
-	output, runErr := exec.Command(command, args...).Output()
-	if runErr != nil {
-		return "", fmt.Errorf("clipboard unavailable: %w", runErr)
-	}
-	if len(output) == 0 {
-		return "", fmt.Errorf("clipboard is empty")
-	}
-	return string(output), nil
+	return readTextWithCommand(command)
+}
+
+func (service *SystemService) CanWriteText() bool {
+	return canResolveCommand(linuxWriteCandidates)
 }
 
 func (service *SystemService) WriteText(text string) error {
-	command, args, err := writeClipboardCommand()
+	command, err := resolveCommand(linuxWriteCandidates, "no clipboard write command found")
 	if err != nil {
 		return err
 	}
 
-	process := exec.Command(command, args...)
-	process.Stdin = bytes.NewBufferString(text)
-	if output, runErr := process.CombinedOutput(); runErr != nil {
-		if len(output) > 0 {
-			return fmt.Errorf("clipboard unavailable: %s", string(output))
-		}
-		return fmt.Errorf("clipboard unavailable: %w", runErr)
-	}
-	return nil
-}
-
-func readClipboardCommand() (string, []string, error) {
-	if path, err := exec.LookPath("wl-paste"); err == nil {
-		return path, []string{"--no-newline"}, nil
-	}
-	if path, err := exec.LookPath("xclip"); err == nil {
-		return path, []string{"-selection", "clipboard", "-o"}, nil
-	}
-	if path, err := exec.LookPath("xsel"); err == nil {
-		return path, []string{"--clipboard", "--output"}, nil
-	}
-	return "", nil, fmt.Errorf("clipboard unavailable: no clipboard read command found")
-}
-
-func writeClipboardCommand() (string, []string, error) {
-	if path, err := exec.LookPath("wl-copy"); err == nil {
-		return path, nil, nil
-	}
-	if path, err := exec.LookPath("xclip"); err == nil {
-		return path, []string{"-selection", "clipboard"}, nil
-	}
-	if path, err := exec.LookPath("xsel"); err == nil {
-		return path, []string{"--clipboard", "--input"}, nil
-	}
-	return "", nil, fmt.Errorf("clipboard unavailable: no clipboard write command found")
+	return writeTextWithCommand(command, text)
 }
