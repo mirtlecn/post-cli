@@ -10,6 +10,8 @@ builds:
   - id: post
     main: ./cmd/post
     binary: post
+    flags:
+      - -trimpath
     env:
       - CGO_ENABLED=0
     goos:
