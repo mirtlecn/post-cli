@@ -27,7 +27,7 @@ builds:
 
 archives:
   - id: default
-    builds:
+    ids:
       - post
     formats:
       - tar.gz
