@@ -145,6 +145,29 @@ func TestNewAcceptsCustomURIScheme(t *testing.T) {
 	}
 }
 
+func TestValidateURLContentAcceptsCommonSchemes(t *testing.T) {
+	testCases := []struct {
+		name    string
+		content string
+	}{
+		{name: "http", content: "http://example.com"},
+		{name: "https", content: "https://example.com/docs?q=1#part"},
+		{name: "mailto", content: "mailto:test@example.com"},
+		{name: "ftp", content: "ftp://ftp.example.com/pub/file.txt"},
+		{name: "custom plus", content: "obsidian+note://open?vault=demo"},
+		{name: "custom dot", content: "web+demo.v1://open/item"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := validateURLContent("url", testCase.content)
+			if err != nil {
+				t.Fatalf("validateURLContent returned error: %v", err)
+			}
+		})
+	}
+}
+
 func TestNewRejectsURLWithoutScheme(t *testing.T) {
 	service := NewService(&stubClient{}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
 
@@ -172,6 +195,28 @@ func TestNewRejectsURLWithInvalidScheme(t *testing.T) {
 	})
 	if err == nil || err.Error() != "invalid URL: missing or invalid URI scheme" {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestValidateURLContentRejectsInvalidInputs(t *testing.T) {
+	testCases := []struct {
+		name    string
+		content string
+	}{
+		{name: "missing scheme", content: "example.com/path"},
+		{name: "whitespace only", content: "   "},
+		{name: "scheme starts with digit", content: "1demo://open"},
+		{name: "scheme starts with symbol", content: "+demo://open"},
+		{name: "scheme missing body", content: "://open"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := validateURLContent("url", testCase.content)
+			if err == nil || err.Error() != "invalid URL: missing or invalid URI scheme" {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
 	}
 }
 
