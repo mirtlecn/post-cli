@@ -48,6 +48,10 @@ run_failure() {
 }
 
 run_success "help" ./post help
+run_success "version" ./post version
+run_success "completion-bash" ./post completion bash
+run_success "completion-zsh" ./post completion zsh
+run_success "completion-powershell" ./post completion powershell
 run_success "ls-all" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls
 run_success "new-text" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -s "$PREFIX-text" "hello text"
 run_success "new-file-content" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -s "$PREFIX-file-content" -f "$SAMPLE_FILE"
