@@ -1,3 +1,4 @@
 dist/
-post
-post.exe
+/post
+/post.exe
+.DS_Store

@@ -39,7 +39,7 @@ _post_completion() {
   fi
 
   if [[ ${COMP_CWORD} -eq 1 ]]; then
-    COMPREPLY=($(compgen -W "new md qr file html text url ls export rm completion help" -- "${current}"))
+    COMPREPLY=($(compgen -W "new md qr file html text url ls export rm completion version help" -- "${current}"))
     return 0
   fi
 
@@ -77,6 +77,9 @@ _post_completion() {
     completion)
       COMPREPLY=($(compgen -W "bash zsh powershell" -- "${current}"))
       ;;
+    version)
+      COMPREPLY=()
+      ;;
     help)
       COMPREPLY=()
       ;;
@@ -102,6 +105,7 @@ _post() {
     'export:Export all posts or one post with full content'
     'rm:Delete a post'
     'completion:Print shell completion script'
+    'version:Show build version information'
     'help:Show help'
   )
 
@@ -155,6 +159,9 @@ _post() {
     completion)
       _arguments '1:shell:(bash zsh powershell)'
       ;;
+    version)
+      _arguments
+      ;;
     *)
       _arguments \
         '1:subcommand:->subcommand' \
@@ -175,7 +182,7 @@ const powerShellCompletion = `Register-ArgumentCompleter -Native -CommandName po
     param($wordToComplete, $commandAst, $cursorPosition)
 
     $tokens = $commandAst.CommandElements | ForEach-Object { $_.Extent.Text }
-    $subcommands = @('new', 'md', 'qr', 'file', 'html', 'text', 'url', 'ls', 'export', 'rm', 'completion', 'help')
+    $subcommands = @('new', 'md', 'qr', 'file', 'html', 'text', 'url', 'ls', 'export', 'rm', 'completion', 'version', 'help')
     $newOptions = @('-s', '--slug', '-t', '--ttl', '-u', '--update', '-y', '--no-confirm', '-x', '--export', '-f', '--file', '-c', '--convert')
     $shortcutOptions = @('-s', '--slug', '-t', '--ttl', '-u', '--update', '-y', '--no-confirm', '-x', '--export', '-f', '--file')
     $lsOptions = @('-x', '--export')

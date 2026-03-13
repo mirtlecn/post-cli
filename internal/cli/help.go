@@ -21,6 +21,7 @@ Usage:
   post rm <path>               Delete a post
   post rm -x <path>            Delete a post and return full content
   post completion <shell>      Print shell completion script
+  post version | -v            Show build version information
   post help | -h | --help      Show this help
 
 Options for 'new':
@@ -67,6 +68,7 @@ Examples:
   post completion bash
   post completion zsh
   post completion powershell
+  post version
   post new hello world
   post md -f README.md
   echo '# Hello' | post md

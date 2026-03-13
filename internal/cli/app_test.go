@@ -57,7 +57,7 @@ func TestShouldPrependNewForCompletion(t *testing.T) {
 
 func TestRunCompletionDoesNotRequireConfig(t *testing.T) {
 	var stdout bytes.Buffer
-	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{})
+	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{}, BuildInfo{})
 
 	err := app.Run(context.Background(), []string{"completion", "bash"})
 	if err != nil {
@@ -71,7 +71,7 @@ func TestRunCompletionDoesNotRequireConfig(t *testing.T) {
 
 func TestRunPowerShellCompletionDoesNotRequireConfig(t *testing.T) {
 	var stdout bytes.Buffer
-	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{})
+	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{}, BuildInfo{})
 
 	err := app.Run(context.Background(), []string{"completion", "powershell"})
 	if err != nil {
@@ -84,7 +84,7 @@ func TestRunPowerShellCompletionDoesNotRequireConfig(t *testing.T) {
 }
 
 func TestRunCompletionRejectsUnsupportedShell(t *testing.T) {
-	app := NewApp(os.Stdin, &bytes.Buffer{}, &bytes.Buffer{})
+	app := NewApp(os.Stdin, &bytes.Buffer{}, &bytes.Buffer{}, BuildInfo{})
 
 	err := app.Run(context.Background(), []string{"completion", "fish"})
 	if err == nil {
@@ -94,7 +94,7 @@ func TestRunCompletionRejectsUnsupportedShell(t *testing.T) {
 
 func TestHelpDoesNotRequireConfig(t *testing.T) {
 	var stdout bytes.Buffer
-	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{})
+	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{}, BuildInfo{})
 
 	err := app.Run(context.Background(), []string{"help"})
 	if err != nil {
@@ -169,5 +169,24 @@ func TestParseShortcutOptionsRejectsExtraFileArguments(t *testing.T) {
 	_, err := parseShortcutOptions("file", []string{"a.txt", "b.txt"})
 	if err == nil || err.Error() != "file command accepts a single file path" {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRunVersionPrintsBuildInfo(t *testing.T) {
+	var stdout bytes.Buffer
+	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{}, BuildInfo{
+		Version:   "v1.2.3",
+		Commit:    "abc123",
+		BuildDate: "2026-03-13T21:00:00Z",
+	})
+
+	err := app.Run(context.Background(), []string{"version"})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "post v1.2.3") || !strings.Contains(output, "commit: abc123") || !strings.Contains(output, "built: 2026-03-13T21:00:00Z") {
+		t.Fatalf("unexpected version output: %q", output)
 	}
 }

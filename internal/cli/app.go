@@ -19,10 +19,17 @@ type App struct {
 	stdin  *os.File
 	stdout io.Writer
 	stderr io.Writer
+	build  BuildInfo
 }
 
-func NewApp(stdin *os.File, stdout io.Writer, stderr io.Writer) *App {
-	return &App{stdin: stdin, stdout: stdout, stderr: stderr}
+type BuildInfo struct {
+	Version   string
+	Commit    string
+	BuildDate string
+}
+
+func NewApp(stdin *os.File, stdout io.Writer, stderr io.Writer, build BuildInfo) *App {
+	return &App{stdin: stdin, stdout: stdout, stderr: stderr, build: build}
 }
 
 func (app *App) Run(ctx context.Context, args []string) error {
@@ -40,6 +47,8 @@ func (app *App) Run(ctx context.Context, args []string) error {
 	switch command {
 	case "completion":
 		return app.runCompletion(args)
+	case "version", "--version", "-v":
+		return app.runVersion()
 	case "new":
 		host, token, _, err := loadRuntimeConfig()
 		if err != nil {
@@ -175,6 +184,17 @@ func (app *App) runRemove(ctx context.Context, service *post.Service, args []str
 		return err
 	}
 	_, _ = io.WriteString(app.stdout, output)
+	return nil
+}
+
+func (app *App) runVersion() error {
+	_, _ = fmt.Fprintf(
+		app.stdout,
+		"post %s\ncommit: %s\nbuilt: %s\n",
+		app.build.Version,
+		app.build.Commit,
+		app.build.BuildDate,
+	)
 	return nil
 }
 
