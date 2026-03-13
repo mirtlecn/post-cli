@@ -82,6 +82,7 @@ func TestLoadUsesDefaultDotConfigPath(t *testing.T) {
 	}
 
 	t.Setenv("HOME", tempDir)
+	t.Setenv("USERPROFILE", tempDir)
 	t.Setenv("POST_CONFIG", "")
 	t.Setenv("POST_HOST", "")
 	t.Setenv("POST_TOKEN", "")

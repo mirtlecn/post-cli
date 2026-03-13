@@ -1,3 +1,5 @@
+//go:build windows
+
 package clipboard
 
 import (
@@ -6,11 +8,6 @@ import (
 
 	systemclipboard "golang.design/x/clipboard"
 )
-
-type Service interface {
-	ReadText() (string, error)
-	WriteText(text string) error
-}
 
 type SystemService struct{}
 
