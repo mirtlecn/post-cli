@@ -1,6 +1,8 @@
-# post
+[Go server](https://github.com/mirtlecn/post-go) | [Node.js server](https://github.com/mirtlecn/post) | [WebUI](https://github.com/mirtlecn/post)
 
-`post` is a cross-platform CLI for creating short links and uploading text, files, clipboard content, or piped input to a Post-compatible server.
+# Post
+
+`post` is a cross-platform CLI for creating short links and uploading text, files, clipboard content, or piped input to a [Post-compatible server](https://github.com/mirtlecn/post).
 
 ## Features
 
@@ -159,13 +161,8 @@ Run the local smoke test:
 POST_HOST=http://localhost:3000 POST_TOKEN=demo ./scripts/smoke_local.sh
 ```
 
-## Release
+## Credits
 
-GitHub Actions builds and publishes release artifacts when a tag matching `v*` is pushed.
+MIT Licence
 
-Example:
-
-```bash
-git tag v0.1.1
-git push origin v0.1.1
-```
+© Mirtle together with OpenAI Codex
