@@ -91,3 +91,69 @@ func TestHelpDoesNotRequireConfig(t *testing.T) {
 		t.Fatalf("unexpected help output: %q", stdout.String())
 	}
 }
+
+func TestParseShortcutOptionsUsesDefaultTTL(t *testing.T) {
+	options, err := parseShortcutOptions("md", []string{"hello"})
+	if err != nil {
+		t.Fatalf("parseShortcutOptions returned error: %v", err)
+	}
+
+	if options.Convert != "md2html" {
+		t.Fatalf("unexpected convert: %s", options.Convert)
+	}
+	if options.TTL == nil || *options.TTL != 10080 {
+		t.Fatalf("unexpected ttl: %v", options.TTL)
+	}
+	if len(options.Args) != 1 || options.Args[0] != "hello" {
+		t.Fatalf("unexpected args: %#v", options.Args)
+	}
+}
+
+func TestParseShortcutOptionsAllowsTTLOverride(t *testing.T) {
+	options, err := parseShortcutOptions("text", []string{"-t", "60", "hello"})
+	if err != nil {
+		t.Fatalf("parseShortcutOptions returned error: %v", err)
+	}
+
+	if options.TTL == nil || *options.TTL != 60 {
+		t.Fatalf("unexpected ttl: %v", options.TTL)
+	}
+}
+
+func TestParseShortcutOptionsUsesPositionalFilePath(t *testing.T) {
+	options, err := parseShortcutOptions("file", []string{"./demo.txt"})
+	if err != nil {
+		t.Fatalf("parseShortcutOptions returned error: %v", err)
+	}
+
+	if options.FilePath != "./demo.txt" {
+		t.Fatalf("unexpected file path: %s", options.FilePath)
+	}
+	if len(options.Args) != 0 {
+		t.Fatalf("unexpected args: %#v", options.Args)
+	}
+	if options.Convert != "file" {
+		t.Fatalf("unexpected convert: %s", options.Convert)
+	}
+}
+
+func TestParseShortcutOptionsRejectsMissingFilePath(t *testing.T) {
+	_, err := parseShortcutOptions("file", nil)
+	if err == nil || err.Error() != "file command requires a file path" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestParseShortcutOptionsRejectsConflictingFilePathInputs(t *testing.T) {
+	_, err := parseShortcutOptions("file", []string{"-f", "a.txt", "b.txt"})
+	if err == nil || err.Error() != "file command accepts either a positional file path or -f, not both" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestParseShortcutOptionsRejectsExtraFileArguments(t *testing.T) {
+	_, err := parseShortcutOptions("file", []string{"a.txt", "b.txt"})
+	if err == nil || err.Error() != "file command accepts a single file path" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

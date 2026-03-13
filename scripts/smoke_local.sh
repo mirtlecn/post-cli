@@ -61,6 +61,16 @@ run_success "new-type-html" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" 
 run_success "new-type-url" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -s "$PREFIX-type-url" -c url "https://example.com"
 run_success "new-md2html" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -s "$PREFIX-md2html" -c md2html "# Hello"
 run_success "new-qrcode" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -s "$PREFIX-qrcode" -c qrcode "https://example.com/qr"
+run_success "shortcut-md-text" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post md -y -s "$PREFIX-shortcut-md" "# Shortcut"
+run_success "shortcut-md-file" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post md -y -s "$PREFIX-shortcut-md-file" -f "$SAMPLE_FILE"
+run_success "shortcut-qr" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post qr -y -s "$PREFIX-shortcut-qr" "https://example.com/qr-shortcut"
+run_success "shortcut-html" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post html -y -s "$PREFIX-shortcut-html" "<p>hi</p>"
+run_success "shortcut-text" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post text -y -s "$PREFIX-shortcut-text" "shortcut text"
+run_success "shortcut-url" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post url -y -s "$PREFIX-shortcut-url" "https://example.com/shortcut"
+run_success "shortcut-file-positional" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y -s "$PREFIX-shortcut-file" "$SAMPLE_FILE"
+run_success "shortcut-file-flag" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y -s "$PREFIX-shortcut-file-flag" -f "$SAMPLE_FILE"
+run_success "shortcut-ttl-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post text -y -x -s "$PREFIX-shortcut-ttl" "shortcut ttl"
+run_success "shortcut-ttl-override" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post text -y -x -t 60 -s "$PREFIX-shortcut-ttl-override" "shortcut ttl override"
 run_success "ls-one" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$PREFIX-text"
 run_success "ls-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls -x "$PREFIX-text"
 run_success "export-all" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post export
@@ -74,8 +84,11 @@ run_failure "invalid-convert" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN
 run_failure "missing-file-flag" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -c file
 run_failure "missing-file" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -f "$TMP_DIR/not-found.txt"
 run_failure "missing-rm-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post rm
+run_failure "shortcut-file-missing-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y
+run_failure "shortcut-file-conflicting-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y -f "$SAMPLE_FILE" "$SAMPLE_FILE"
 run_failure "unknown-command" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post oops
 run_failure "unknown-option" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -z text
 run_failure "invalid-ttl" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -t nope text
+run_failure "shortcut-invalid-ttl" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post text -y -t nope text
 run_failure "duplicate-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -s "$PREFIX-text" "duplicate text"
 run_failure "missing-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$PREFIX-not-found"

@@ -22,6 +22,46 @@ type App struct {
 	stderr io.Writer
 }
 
+type shortcutCommand struct {
+	Convert           string
+	DefaultTTLMinutes int
+	AllowFileContent  bool
+	RequireFilePath   bool
+}
+
+var shortcutCommands = map[string]shortcutCommand{
+	"md": {
+		Convert:           "md2html",
+		DefaultTTLMinutes: 10080,
+		AllowFileContent:  true,
+	},
+	"qr": {
+		Convert:           "qrcode",
+		DefaultTTLMinutes: 10080,
+		AllowFileContent:  true,
+	},
+	"file": {
+		Convert:           "file",
+		DefaultTTLMinutes: 10080,
+		RequireFilePath:   true,
+	},
+	"html": {
+		Convert:           "html",
+		DefaultTTLMinutes: 10080,
+		AllowFileContent:  true,
+	},
+	"text": {
+		Convert:           "text",
+		DefaultTTLMinutes: 10080,
+		AllowFileContent:  true,
+	},
+	"url": {
+		Convert:           "url",
+		DefaultTTLMinutes: 10080,
+		AllowFileContent:  true,
+	},
+}
+
 func NewApp(stdin *os.File, stdout io.Writer, stderr io.Writer) *App {
 	return &App{stdin: stdin, stdout: stdout, stderr: stderr}
 }
@@ -48,6 +88,13 @@ func (app *App) Run(ctx context.Context, args []string) error {
 		}
 		service := newPostService(host, token, app.stdin, app.stderr)
 		return app.runNew(ctx, service, args, stdinTTY, host)
+	case "md", "qr", "file", "html", "text", "url":
+		host, token, _, err := loadRuntimeConfig()
+		if err != nil {
+			return err
+		}
+		service := newPostService(host, token, app.stdin, app.stderr)
+		return app.runShortcut(ctx, service, command, args, stdinTTY, host)
 	case "ls":
 		host, token, _, err := loadRuntimeConfig()
 		if err != nil {
@@ -110,34 +157,23 @@ func (app *App) runNew(
 		return err
 	}
 
-	if !stdinTTY {
-		options.SkipConfirm = true
-	}
-	options.StdinTTY = stdinTTY
-	options.Confirm = func(_ string) (bool, error) {
-		fmt.Fprintf(app.stderr, "[Post on]: %s? (y/N) ", host)
-		reader := bufio.NewReader(app.stdin)
-		answer, readErr := reader.ReadString('\n')
-		if readErr != nil && readErr != io.EOF {
-			return false, fmt.Errorf("read confirmation: %w", readErr)
-		}
+	return app.runCreate(ctx, service, options, stdinTTY, host)
+}
 
-		trimmed := strings.TrimSpace(answer)
-		return trimmed == "y" || trimmed == "Y" || strings.EqualFold(trimmed, "yes"), nil
-	}
-
-	result, err := service.New(ctx, options)
+func (app *App) runShortcut(
+	ctx context.Context,
+	service *post.Service,
+	command string,
+	args []string,
+	stdinTTY bool,
+	host string,
+) error {
+	options, err := parseShortcutOptions(command, args)
 	if err != nil {
 		return err
 	}
 
-	if result.Stderr != "" {
-		_, _ = io.WriteString(app.stderr, result.Stderr)
-	}
-	if result.Stdout != "" {
-		_, _ = io.WriteString(app.stdout, result.Stdout)
-	}
-	return nil
+	return app.runCreate(ctx, service, options, stdinTTY, host)
 }
 
 func (app *App) runList(ctx context.Context, service *post.Service, args []string) error {
@@ -199,6 +235,43 @@ func (app *App) runCompletion(args []string) error {
 	}
 
 	_, _ = io.WriteString(app.stdout, script)
+	return nil
+}
+
+func (app *App) runCreate(
+	ctx context.Context,
+	service *post.Service,
+	options post.NewOptions,
+	stdinTTY bool,
+	host string,
+) error {
+	if !stdinTTY {
+		options.SkipConfirm = true
+	}
+	options.StdinTTY = stdinTTY
+	options.Confirm = func(_ string) (bool, error) {
+		fmt.Fprintf(app.stderr, "[Post on]: %s? (y/N) ", host)
+		reader := bufio.NewReader(app.stdin)
+		answer, readErr := reader.ReadString('\n')
+		if readErr != nil && readErr != io.EOF {
+			return false, fmt.Errorf("read confirmation: %w", readErr)
+		}
+
+		trimmed := strings.TrimSpace(answer)
+		return trimmed == "y" || trimmed == "Y" || strings.EqualFold(trimmed, "yes"), nil
+	}
+
+	result, err := service.New(ctx, options)
+	if err != nil {
+		return err
+	}
+
+	if result.Stderr != "" {
+		_, _ = io.WriteString(app.stderr, result.Stderr)
+	}
+	if result.Stdout != "" {
+		_, _ = io.WriteString(app.stdout, result.Stdout)
+	}
 	return nil
 }
 
@@ -269,6 +342,51 @@ func parseNewOptions(args []string) (post.NewOptions, error) {
 	return options, nil
 }
 
+func parseShortcutOptions(command string, args []string) (post.NewOptions, error) {
+	definition, ok := shortcutCommands[command]
+	if !ok {
+		return post.NewOptions{}, fmt.Errorf("unknown command '%s'. Try: post help", command)
+	}
+
+	options, err := parseNewOptions(args)
+	if err != nil {
+		return options, err
+	}
+
+	if options.Convert != "" && options.Convert != definition.Convert {
+		return options, fmt.Errorf("option --convert is not supported with shortcut command '%s'", command)
+	}
+
+	options.Convert = definition.Convert
+	if options.TTL == nil {
+		defaultTTL := definition.DefaultTTLMinutes
+		options.TTL = &defaultTTL
+	}
+
+	if definition.RequireFilePath {
+		if len(options.Args) > 1 {
+			return options, fmt.Errorf("file command accepts a single file path")
+		}
+		if options.FilePath != "" && len(options.Args) == 1 {
+			return options, fmt.Errorf("file command accepts either a positional file path or -f, not both")
+		}
+		if options.FilePath == "" && len(options.Args) == 1 {
+			options.FilePath = options.Args[0]
+			options.Args = nil
+		}
+		if options.FilePath == "" {
+			return options, fmt.Errorf("file command requires a file path")
+		}
+		return options, nil
+	}
+
+	if !definition.AllowFileContent && options.FilePath != "" {
+		return options, fmt.Errorf("option --file is not supported with shortcut command '%s'", command)
+	}
+
+	return options, nil
+}
+
 func parsePathExportOptions(args []string, command string) (string, bool, error) {
 	export := false
 	index := 0
@@ -304,7 +422,7 @@ func shouldPrependNew(args []string) bool {
 	}
 
 	switch args[0] {
-	case "new", "ls", "export", "rm", "help", "completion", "--help", "-h":
+	case "new", "md", "qr", "file", "html", "text", "url", "ls", "export", "rm", "help", "completion", "--help", "-h":
 		return false
 	default:
 		return true
@@ -339,6 +457,12 @@ const helpText = `post - paste & short-URL manager
 
 Usage:
   post new [opts] <text...>    Upload text
+  post md [opts] [text...]     Upload Markdown as HTML (default ttl: 10080)
+  post qr [opts] [text...]     Upload text as QR code (default ttl: 10080)
+  post file [opts] <file>      Upload a file path directly (default ttl: 10080)
+  post html [opts] [text...]   Upload HTML content (default ttl: 10080)
+  post text [opts] [text...]   Upload text content (default ttl: 10080)
+  post url [opts] [text...]    Upload URL content (default ttl: 10080)
   post new [opts] -f <file>    Upload file contents
   post new [opts]              Upload clipboard contents (no -f, no text, no stdin)
   echo "..." | post [new]      Upload from stdin
@@ -370,6 +494,14 @@ Options for 'new':
 Options for 'ls' and 'rm':
   -x, --export                   Return full content
 
+Options for shortcut commands:
+  -s, --slug <path>              Custom slug/path
+  -t, --ttl <minutes>            Override default 10080-minute expiration
+  -u, --update                   Overwrite if slug already exists
+  -y, --no-confirm               Skip confirmation prompt
+  -x, --export                   Return full create/update response
+  -f, --file <path>              Read content from file (not for post file)
+
 Environment variables:
   POST_HOST    Base endpoint URL (e.g. https://example.com)
   POST_TOKEN   Bearer token
@@ -388,6 +520,15 @@ Examples:
   post completion bash
   post completion zsh
   post new hello world
+  post md README.md
+  post md -f README.md
+  echo '# Hello' | post md
+  post qr https://example.com
+  post file ./image.png
+  post file -f ./image.png
+  post html '<h1>Hello</h1>'
+  post text
+  post url https://example.com
   post new -f ~/notes.txt
   post new -s mycode -f script.sh
   post new -t 60 "expires in 1 hour"
@@ -416,7 +557,7 @@ _post_completion() {
   fi
 
   if [[ ${COMP_CWORD} -eq 1 ]]; then
-    COMPREPLY=($(compgen -W "new ls export rm completion help" -- "${current}"))
+    COMPREPLY=($(compgen -W "new md qr file html text url ls export rm completion help" -- "${current}"))
     return 0
   fi
 
@@ -438,6 +579,12 @@ _post_completion() {
   case "${command}" in
     new)
       COMPREPLY=($(compgen -W "-s --slug -t --ttl -u --update -y --no-confirm -x --export -f --file -c --convert" -- "${current}"))
+      ;;
+    md|qr|html|text|url)
+      COMPREPLY=($(compgen -W "-s --slug -t --ttl -u --update -y --no-confirm -x --export -f --file" -- "${current}"))
+      ;;
+    file)
+      COMPREPLY=($(compgen -W "-s --slug -t --ttl -u --update -y --no-confirm -x --export -f --file" -- "${current}"))
       ;;
     ls|rm)
       COMPREPLY=($(compgen -W "-x --export" -- "${current}"))
@@ -463,6 +610,12 @@ _post() {
   local -a subcommands
   subcommands=(
     'new:Upload text, file, stdin, or clipboard content'
+    'md:Upload Markdown as HTML'
+    'qr:Upload text as QR code'
+    'file:Upload a file path directly'
+    'html:Upload HTML content'
+    'text:Upload text content'
+    'url:Upload URL content'
     'ls:List all posts or show a specific post'
     'export:Export all posts or one post with full content'
     'rm:Delete a post'
@@ -481,9 +634,32 @@ _post() {
     '(-c --convert)'{-c,--convert}'[Convert/type before uploading]:convert:(html md2html url text qrcode file)'
   )
 
+  local -a shortcut_options
+  shortcut_options=(
+    '(-s --slug)'{-s,--slug}'[Custom slug/path]:slug: '
+    '(-t --ttl)'{-t,--ttl}'[Override expiration time in minutes]:minutes: '
+    '(-u --update)'{-u,--update}'[Overwrite if slug already exists]'
+    '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]'
+    '(-x --export)'{-x,--export}'[Return full create/update response]'
+    '(-f --file)'{-f,--file}'[Read content from file]:file:_files'
+  )
+
   case $words[2] in
     new)
       _arguments -s $new_options '*:text: '
+      ;;
+    md|qr|html|text|url)
+      _arguments -s $shortcut_options '*:text: '
+      ;;
+    file)
+      _arguments -s \
+        '(-s --slug)'{-s,--slug}'[Custom slug/path]:slug: ' \
+        '(-t --ttl)'{-t,--ttl}'[Override expiration time in minutes]:minutes: ' \
+        '(-u --update)'{-u,--update}'[Overwrite if slug already exists]' \
+        '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]' \
+        '(-x --export)'{-x,--export}'[Return full create/update response]' \
+        '(-f --file)'{-f,--file}'[Upload file path]:file:_files' \
+        '1:file:_files'
       ;;
     ls)
       _arguments -s '(-x --export)'{-x,--export}'[Return full content]' '*:path: '
