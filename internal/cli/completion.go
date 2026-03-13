@@ -175,7 +175,7 @@ _post() {
   esac
 }
 
-_post "$@"
+compdef _post post
 `
 
 const powerShellCompletion = `Register-ArgumentCompleter -Native -CommandName post -ScriptBlock {
