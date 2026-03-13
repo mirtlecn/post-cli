@@ -69,6 +69,20 @@ func TestRunCompletionDoesNotRequireConfig(t *testing.T) {
 	}
 }
 
+func TestRunPowerShellCompletionDoesNotRequireConfig(t *testing.T) {
+	var stdout bytes.Buffer
+	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{})
+
+	err := app.Run(context.Background(), []string{"completion", "powershell"})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+
+	if !strings.Contains(stdout.String(), "Register-ArgumentCompleter -Native -CommandName post") {
+		t.Fatalf("unexpected completion output: %q", stdout.String())
+	}
+}
+
 func TestRunCompletionRejectsUnsupportedShell(t *testing.T) {
 	app := NewApp(os.Stdin, &bytes.Buffer{}, &bytes.Buffer{})
 
@@ -87,7 +101,7 @@ func TestHelpDoesNotRequireConfig(t *testing.T) {
 		t.Fatalf("Run returned error: %v", err)
 	}
 
-	if !strings.Contains(stdout.String(), "post completion <shell>") {
+	if !strings.Contains(stdout.String(), "post completion powershell") {
 		t.Fatalf("unexpected help output: %q", stdout.String())
 	}
 }
