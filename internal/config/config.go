@@ -54,12 +54,12 @@ func resolveConfigFilePath() (string, error) {
 		return path, nil
 	}
 
-	configDir, err := os.UserConfigDir()
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("resolve config directory: %w", err)
+		return "", fmt.Errorf("resolve home directory: %w", err)
 	}
 
-	return filepath.Join(configDir, "post", configFileName), nil
+	return filepath.Join(homeDir, ".config", "post", configFileName), nil
 }
 
 func loadFileConfig(filePath string) (FileConfig, error) {
