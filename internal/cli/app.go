@@ -205,6 +205,9 @@ func (app *App) runCreate(
 	stdinTTY bool,
 	host string,
 ) error {
+	if !stdinTTY {
+		options.SkipConfirm = true
+	}
 	options.StdinTTY = stdinTTY
 	options.Confirm = func(_ string) (bool, error) {
 		fmt.Fprintf(app.stderr, "%-12s %s\n", "post to", host)
