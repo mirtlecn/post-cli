@@ -140,6 +140,12 @@ func TestParseShortcutOptionsUsesDefaultTTL(t *testing.T) {
 	if options.TTL == nil || *options.TTL != 10080 {
 		t.Fatalf("unexpected ttl: %v", options.TTL)
 	}
+	if !options.ReadClipboard {
+		t.Fatal("expected read clipboard enabled by default for shortcut command")
+	}
+	if !options.WriteClipboard {
+		t.Fatal("expected write clipboard enabled by default for shortcut command")
+	}
 	if len(options.Args) != 1 || options.Args[0] != "hello" {
 		t.Fatalf("unexpected args: %#v", options.Args)
 	}
@@ -171,11 +177,24 @@ func TestParseShortcutOptionsUsesPositionalFilePath(t *testing.T) {
 	if options.Convert != "file" {
 		t.Fatalf("unexpected convert: %s", options.Convert)
 	}
+	if options.ReadClipboard {
+		t.Fatal("did not expect read clipboard enabled for file command")
+	}
+	if !options.WriteClipboard {
+		t.Fatal("expected write clipboard enabled for file command")
+	}
 }
 
 func TestParseShortcutOptionsRejectsMissingFilePath(t *testing.T) {
 	_, err := parseShortcutOptions("file", nil)
 	if err == nil || err.Error() != "file command requires a file path" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestParseShortcutOptionsRejectsReadClipboardForFileCommand(t *testing.T) {
+	_, err := parseShortcutOptions("file", []string{"-r", "a.txt"})
+	if err == nil || err.Error() != "option --read-clipboard is not supported with shortcut command 'file'" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
