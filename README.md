@@ -8,6 +8,7 @@
 
 - Native CLI binaries for Linux, macOS, and Windows
 - Upload text, HTML, URLs, Markdown, QR codes, and files
+- Manage topics and create topic items with titles
 - Read input from arguments, files, stdin, or the system clipboard
 - Optional shortcut commands for common content types
 - JSON export for create, list, export, and delete flows
@@ -57,6 +58,9 @@ Core commands:
 - `post completion`
 - `post version`
 - `post help`
+- `post topic new`
+- `post topic ls`
+- `post topic rm`
 
 Shortcut commands:
 
@@ -67,7 +71,7 @@ Shortcut commands:
 - `post text`
 - `post url`
 
-Shortcut commands default to `ttl=10080` minutes unless `-t` is provided explicitly.
+Shortcut commands default to `ttl=10080` minutes unless `-t` is provided explicitly. `ttl=0` means no expiration.
 
 ## Input Sources
 
@@ -85,6 +89,15 @@ Shortcut commands default to `ttl=10080` minutes unless `-t` is provided explici
 
 It does not read from stdin or clipboard.
 
+Create-capable commands also support:
+
+- `--type <mode>` to set the request type
+- `--convert <mode>` as an alias of `--type`
+- `-i, --title <title>` to set the item title
+- `-p, --topic <topic>` to attach an item to a topic
+
+When `--topic` is set, `--title` is required.
+
 ## Examples
 
 ```bash
@@ -99,6 +112,13 @@ post html '<h1>Hello</h1>'
 post text
 post url https://example.com
 post file ./image.png
+post text -i "Quick Note" -p anime "topic item"
+post file -i "Poster Pack" -p anime ./image.png
+
+post topic new anime
+post topic ls
+post topic ls anime
+post topic rm anime
 
 post ls
 post ls myslug

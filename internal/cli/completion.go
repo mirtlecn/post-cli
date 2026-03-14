@@ -39,13 +39,17 @@ _post_completion() {
   fi
 
   if [[ ${COMP_CWORD} -eq 1 ]]; then
-    COMPREPLY=($(compgen -W "new text md file url html qr ls export rm version completion help" -- "${current}"))
+    COMPREPLY=($(compgen -W "new text md file url html qr ls export rm topic version completion help" -- "${current}"))
     return 0
   fi
 
   case "${previous}" in
-    -c|--convert)
-      COMPREPLY=($(compgen -W "html md2html url text qrcode file" -- "${current}"))
+    -c|--convert|--type)
+      COMPREPLY=($(compgen -W "html md2html url text qrcode file topic" -- "${current}"))
+      return 0
+      ;;
+    topic)
+      COMPREPLY=($(compgen -W "new ls rm" -- "${current}"))
       return 0
       ;;
     completion)
@@ -60,20 +64,33 @@ _post_completion() {
 
   case "${command}" in
     new)
-      COMPREPLY=($(compgen -W "-f --file -s --slug -t --ttl -y --no-confirm -u --update -x --export -r --read-clipboard -w --write-clipboard -c --convert" -- "${current}"))
+      COMPREPLY=($(compgen -W "-f --file -s --slug -i --title -p --topic -t --ttl -y --no-confirm -u --update -x --export -r --read-clipboard -w --write-clipboard -c --convert --type" -- "${current}"))
       ;;
     md|qr|html|text|url)
-      COMPREPLY=($(compgen -W "-f --file -s --slug -t --ttl -y --no-confirm -u --update -x --export -r --read-clipboard -w --write-clipboard" -- "${current}"))
+      COMPREPLY=($(compgen -W "-f --file -s --slug -i --title -p --topic -t --ttl -y --no-confirm -u --update -x --export -r --read-clipboard -w --write-clipboard" -- "${current}"))
       ;;
     file)
       if [[ "${current}" == -* ]]; then
-        COMPREPLY=($(compgen -W "-f --file -s --slug -t --ttl -y --no-confirm -u --update -x --export -w --write-clipboard" -- "${current}"))
+        COMPREPLY=($(compgen -W "-f --file -s --slug -i --title -p --topic -t --ttl -y --no-confirm -u --update -x --export -w --write-clipboard" -- "${current}"))
       else
         COMPREPLY=($(compgen -f -- "${current}"))
       fi
       ;;
     ls|rm)
       COMPREPLY=($(compgen -W "-x --export" -- "${current}"))
+      ;;
+    topic)
+      case "${COMP_WORDS[2]}" in
+        new)
+          COMPREPLY=()
+          ;;
+        ls|rm)
+          COMPREPLY=($(compgen -W "-x --export" -- "${current}"))
+          ;;
+        *)
+          COMPREPLY=($(compgen -W "new ls rm" -- "${current}"))
+          ;;
+      esac
       ;;
     export)
       COMPREPLY=()
@@ -108,6 +125,7 @@ _post() {
     'ls:List all posts or show a specific post'
     'export:Export all posts or one post with full content'
     'rm:Delete a post'
+    'topic:Manage topics'
     'version:Show build version information'
     'completion:Print shell completion script'
     'help:Show help'
@@ -117,19 +135,24 @@ _post() {
   new_options=(
     '(-f --file)'{-f,--file}'[Read content from file]:file:_files'
     '(-s --slug)'{-s,--slug}'[Custom slug/path]:slug: '
-    '(-t --ttl)'{-t,--ttl}'[Expiration time in minutes]:minutes: '
+    '(-i --title)'{-i,--title}'[Set item title]:title: '
+    '(-p --topic)'{-p,--topic}'[Attach item to a topic]:topic: '
+    '(-t --ttl)'{-t,--ttl}'[Expiration time in minutes (0 means never)]:minutes: '
     '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]'
     '(-u --update)'{-u,--update}'[Overwrite if slug already exists]'
     '(-x --export)'{-x,--export}'[Return full create/update response]'
     '(-r --read-clipboard)'{-r,--read-clipboard}'[Read content from clipboard]'
     '(-w --write-clipboard)'{-w,--write-clipboard}'[Copy result URL to clipboard]'
-    '(-c --convert)'{-c,--convert}'[Convert/type before uploading]:convert:(html md2html url text qrcode file)'
+    '(--type)'--type'[Set request type]:type:(html md2html url text qrcode file topic)'
+    '(-c --convert)'{-c,--convert}'[Alias of --type]:type:(html md2html url text qrcode file topic)'
   )
 
   local -a shortcut_options
   shortcut_options=(
     '(-f --file)'{-f,--file}'[Read content from file]:file:_files'
     '(-s --slug)'{-s,--slug}'[Custom slug/path]:slug: '
+    '(-i --title)'{-i,--title}'[Set item title]:title: '
+    '(-p --topic)'{-p,--topic}'[Attach item to a topic]:topic: '
     '(-t --ttl)'{-t,--ttl}'[Override expiration time in minutes]:minutes: '
     '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]'
     '(-u --update)'{-u,--update}'[Overwrite if slug already exists]'
@@ -154,6 +177,8 @@ _post() {
       (( CURRENT -= 1 ))
       _arguments -s \
         '(-s --slug)'{-s,--slug}'[Custom slug/path]:slug: ' \
+        '(-i --title)'{-i,--title}'[Set item title]:title: ' \
+        '(-p --topic)'{-p,--topic}'[Attach item to a topic]:topic: ' \
         '(-t --ttl)'{-t,--ttl}'[Override expiration time in minutes]:minutes: ' \
         '(-u --update)'{-u,--update}'[Overwrite if slug already exists]' \
         '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]' \
@@ -176,6 +201,22 @@ _post() {
       shift words
       (( CURRENT -= 1 ))
       _arguments -s '(-x --export)'{-x,--export}'[Return full content]' '1:path: '
+      ;;
+    topic)
+      case $words[3] in
+        new)
+          _arguments '1:topic: '
+          ;;
+        ls)
+          _arguments -s '(-x --export)'{-x,--export}'[Return full content]' '*:topic: '
+          ;;
+        rm)
+          _arguments -s '(-x --export)'{-x,--export}'[Return full content]' '1:topic: '
+          ;;
+        *)
+          _arguments '1:subcommand:(new ls rm)' '*::arg: '
+          ;;
+      esac
       ;;
     completion)
       shift words
@@ -207,13 +248,14 @@ const powerShellCompletion = `Register-ArgumentCompleter -Native -CommandName po
     param($wordToComplete, $commandAst, $cursorPosition)
 
     $tokens = $commandAst.CommandElements | ForEach-Object { $_.Extent.Text }
-    $subcommands = @('new', 'text', 'md', 'file', 'url', 'html', 'qr', 'ls', 'export', 'rm', 'version', 'completion', 'help')
-    $newOptions = @('-f', '--file', '-s', '--slug', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-r', '--read-clipboard', '-w', '--write-clipboard', '-c', '--convert')
-    $shortcutOptions = @('-f', '--file', '-s', '--slug', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-r', '--read-clipboard', '-w', '--write-clipboard')
-    $fileOptions = @('-f', '--file', '-s', '--slug', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-w', '--write-clipboard')
+    $subcommands = @('new', 'text', 'md', 'file', 'url', 'html', 'qr', 'ls', 'export', 'rm', 'topic', 'version', 'completion', 'help')
+    $newOptions = @('-f', '--file', '-s', '--slug', '-i', '--title', '-p', '--topic', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-r', '--read-clipboard', '-w', '--write-clipboard', '-c', '--convert', '--type')
+    $shortcutOptions = @('-f', '--file', '-s', '--slug', '-i', '--title', '-p', '--topic', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-r', '--read-clipboard', '-w', '--write-clipboard')
+    $fileOptions = @('-f', '--file', '-s', '--slug', '-i', '--title', '-p', '--topic', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-w', '--write-clipboard')
     $lsOptions = @('-x', '--export')
+    $topicSubcommands = @('new', 'ls', 'rm')
     $shells = @('bash', 'zsh', 'powershell')
-    $convertValues = @('html', 'md2html', 'url', 'text', 'qrcode', 'file')
+    $convertValues = @('html', 'md2html', 'url', 'text', 'qrcode', 'file', 'topic')
 
     if ($tokens.Count -le 2) {
         $subcommands | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
@@ -232,7 +274,7 @@ const powerShellCompletion = `Register-ArgumentCompleter -Native -CommandName po
         return
     }
 
-    if ($previous -in @('-c', '--convert')) {
+    if ($previous -in @('-c', '--convert', '--type')) {
         $convertValues | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
             [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
         }
@@ -242,6 +284,27 @@ const powerShellCompletion = `Register-ArgumentCompleter -Native -CommandName po
     if ($command -eq 'completion') {
         $shells | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
             [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+        }
+        return
+    }
+
+    if ($command -eq 'topic') {
+        if ($tokens.Count -le 3) {
+            $topicSubcommands | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+                [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+            }
+            return
+        }
+
+        $topicCommand = $tokens[2]
+        $candidates = switch ($topicCommand) {
+            'ls' { $lsOptions }
+            'rm' { $lsOptions }
+            default { @() }
+        }
+
+        $candidates | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterName', $_)
         }
         return
     }

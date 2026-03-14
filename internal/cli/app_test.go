@@ -23,8 +23,8 @@ func TestParseNewOptions(t *testing.T) {
 	if options.TTL == nil || *options.TTL != 15 {
 		t.Fatalf("unexpected ttl: %v", options.TTL)
 	}
-	if options.Convert != "text" {
-		t.Fatalf("unexpected convert: %s", options.Convert)
+	if options.Type != "text" {
+		t.Fatalf("unexpected type: %s", options.Type)
 	}
 	if !options.Export {
 		t.Fatal("expected export flag")
@@ -40,10 +40,27 @@ func TestParseNewOptions(t *testing.T) {
 	}
 }
 
-func TestParseNewOptionsRejectsInvalidConvert(t *testing.T) {
+func TestParseNewOptionsRejectsInvalidType(t *testing.T) {
 	_, err := parseNewOptions([]string{"-c", "bad"})
 	if err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestParseNewOptionsRejectsNegativeTTL(t *testing.T) {
+	_, err := parseNewOptions([]string{"-t", "-1"})
+	if err == nil || err.Error() != "option -t requires a non-negative number (minutes)" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestParseNewOptionsSupportsTypeTopicAndTitle(t *testing.T) {
+	options, err := parseNewOptions([]string{"--type", "text", "-p", "anime", "-i", "Castle Notes", "hello"})
+	if err != nil {
+		t.Fatalf("parseNewOptions returned error: %v", err)
+	}
+	if options.Type != "text" || options.Topic != "anime" || options.Title != "Castle Notes" {
+		t.Fatalf("unexpected options: %#v", options)
 	}
 }
 
@@ -177,6 +194,9 @@ func TestBashCompletionIncludesClipboardFlagsAndFilePathCompletion(t *testing.T)
 	if !strings.Contains(output, "--read-clipboard") || !strings.Contains(output, "--write-clipboard") {
 		t.Fatalf("clipboard flags missing in bash completion: %q", output)
 	}
+	if !strings.Contains(output, "--type") || !strings.Contains(output, "topic version completion help") {
+		t.Fatalf("type/topic completion missing in bash completion: %q", output)
+	}
 	if !strings.Contains(output, "file)\n      if [[ \"${current}\" == -* ]]; then") || !strings.Contains(output, "COMPREPLY=($(compgen -f -- \"${current}\"))") {
 		t.Fatalf("file path completion missing in bash completion: %q", output)
 	}
@@ -209,6 +229,9 @@ func TestPowerShellCompletionIncludesClipboardFlagsAndFilePathCompletion(t *test
 	if !strings.Contains(output, "--read-clipboard") || !strings.Contains(output, "--write-clipboard") {
 		t.Fatalf("clipboard flags missing in powershell completion: %q", output)
 	}
+	if !strings.Contains(output, "--type") || !strings.Contains(output, "$topicSubcommands = @('new', 'ls', 'rm')") {
+		t.Fatalf("type/topic completion missing in powershell completion: %q", output)
+	}
 	if !strings.Contains(output, "$fileOptions = @(") || !strings.Contains(output, "'file' {\n            if ($wordToComplete -and $wordToComplete.StartsWith('-')) {") {
 		t.Fatalf("file path completion missing in powershell completion: %q", output)
 	}
@@ -230,6 +253,9 @@ func TestCompletionPrioritizesFrequentCommands(t *testing.T) {
 	}
 	if !strings.Contains(output, "--read-clipboard") || !strings.Contains(output, "--write-clipboard") {
 		t.Fatalf("clipboard flags missing in zsh completion: %q", output)
+	}
+	if !strings.Contains(output, "'topic:Manage topics'") || !strings.Contains(output, "--type") {
+		t.Fatalf("type/topic completion missing in zsh completion: %q", output)
 	}
 	if !strings.Contains(output, "shift words\n      (( CURRENT -= 1 ))\n      _arguments -s \\\n        '(-s --slug)'") {
 		t.Fatalf("zsh subcommand argument shifting missing for file command: %q", output)
@@ -263,6 +289,9 @@ func TestHelpDoesNotRequireConfig(t *testing.T) {
 	if !strings.Contains(stdout.String(), "--read-clipboard") || !strings.Contains(stdout.String(), "post new -r") {
 		t.Fatalf("help output missing clipboard usage: %q", stdout.String())
 	}
+	if !strings.Contains(stdout.String(), "post topic new <topic>") || !strings.Contains(stdout.String(), "--type <mode>") {
+		t.Fatalf("help output missing topic/type usage: %q", stdout.String())
+	}
 }
 
 type stubCreateClient struct {
@@ -273,15 +302,15 @@ func (client *stubCreateClient) PostJSON(ctx context.Context, method string, pay
 	return client.postJSONFunc(ctx, method, payload, export)
 }
 
-func (client *stubCreateClient) Get(context.Context, string, bool) ([]byte, error) {
+func (client *stubCreateClient) Get(context.Context, api.JSONRequest, bool) ([]byte, error) {
 	panic("unexpected Get call")
 }
 
-func (client *stubCreateClient) Delete(context.Context, string, bool) ([]byte, error) {
+func (client *stubCreateClient) Delete(context.Context, api.JSONRequest, bool) ([]byte, error) {
 	panic("unexpected Delete call")
 }
 
-func (client *stubCreateClient) UploadFile(context.Context, string, string, string, *int, bool) ([]byte, error) {
+func (client *stubCreateClient) UploadFile(context.Context, string, string, string, string, string, *int, bool) ([]byte, error) {
 	panic("unexpected UploadFile call")
 }
 
@@ -305,8 +334,8 @@ func TestParseShortcutOptionsUsesDefaultTTL(t *testing.T) {
 		t.Fatalf("parseShortcutOptions returned error: %v", err)
 	}
 
-	if options.Convert != "md2html" {
-		t.Fatalf("unexpected convert: %s", options.Convert)
+	if options.Type != "md2html" {
+		t.Fatalf("unexpected type: %s", options.Type)
 	}
 	if options.TTL == nil || *options.TTL != 10080 {
 		t.Fatalf("unexpected ttl: %v", options.TTL)
@@ -319,6 +348,19 @@ func TestParseShortcutOptionsUsesDefaultTTL(t *testing.T) {
 	}
 	if len(options.Args) != 1 || options.Args[0] != "hello" {
 		t.Fatalf("unexpected args: %#v", options.Args)
+	}
+}
+
+func TestRunTopicRejectsUnknownCommand(t *testing.T) {
+	app := NewApp(os.Stdin, &bytes.Buffer{}, &bytes.Buffer{}, BuildInfo{})
+
+	err := app.runTopic(context.Background(), post.NewService(&stubCreateClient{
+		postJSONFunc: func(_ context.Context, _ string, _ api.JSONRequest, _ bool) ([]byte, error) {
+			return nil, nil
+		},
+	}, &stubCreateClipboard{}, bytes.NewBuffer(nil), &bytes.Buffer{}), []string{"oops"})
+	if err == nil || err.Error() != "unknown topic command 'oops'. Try: post help" {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -345,8 +387,8 @@ func TestParseShortcutOptionsUsesPositionalFilePath(t *testing.T) {
 	if len(options.Args) != 0 {
 		t.Fatalf("unexpected args: %#v", options.Args)
 	}
-	if options.Convert != "file" {
-		t.Fatalf("unexpected convert: %s", options.Convert)
+	if options.Type != "file" {
+		t.Fatalf("unexpected type: %s", options.Type)
 	}
 	if options.ReadClipboard {
 		t.Fatal("did not expect read clipboard enabled for file command")

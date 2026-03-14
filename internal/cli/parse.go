@@ -24,6 +24,20 @@ func parseNewOptions(args []string) (post.NewOptions, error) {
 	for index := 0; index < len(expandedArgs); {
 		arg := expandedArgs[index]
 		switch arg {
+		case "-i", "--title":
+			value, nextIndex, err := nextValue(expandedArgs, index)
+			if err != nil {
+				return options, fmt.Errorf("option %s requires a value", arg)
+			}
+			options.Title = value
+			index = nextIndex
+		case "-p", "--topic":
+			value, nextIndex, err := nextValue(expandedArgs, index)
+			if err != nil {
+				return options, fmt.Errorf("option %s requires a value", arg)
+			}
+			options.Topic = value
+			index = nextIndex
 		case "-s", "--slug":
 			value, nextIndex, err := nextValue(expandedArgs, index)
 			if err != nil {
@@ -34,11 +48,11 @@ func parseNewOptions(args []string) (post.NewOptions, error) {
 		case "-t", "--ttl":
 			value, nextIndex, err := nextValue(expandedArgs, index)
 			if err != nil {
-				return options, fmt.Errorf("option %s requires a number (minutes)", arg)
+				return options, fmt.Errorf("option %s requires a non-negative number (minutes)", arg)
 			}
 			ttl, convertErr := strconv.Atoi(value)
-			if convertErr != nil {
-				return options, fmt.Errorf("option %s requires a number (minutes)", arg)
+			if convertErr != nil || ttl < 0 {
+				return options, fmt.Errorf("option %s requires a non-negative number (minutes)", arg)
 			}
 			options.TTL = &ttl
 			index = nextIndex
@@ -64,15 +78,18 @@ func parseNewOptions(args []string) (post.NewOptions, error) {
 			}
 			options.FilePath = value
 			index = nextIndex
-		case "-c", "--convert":
+		case "--type", "-c", "--convert":
 			value, nextIndex, err := nextValue(expandedArgs, index)
 			if err != nil {
-				return options, fmt.Errorf("option %s requires a value: html|md2html|url|text|qrcode|file", arg)
+				return options, fmt.Errorf("option %s requires a value: html|md2html|url|text|qrcode|file|topic", arg)
 			}
-			if !isValidConvert(value) {
-				return options, fmt.Errorf("invalid convert value '%s'. Must be one of: html, md2html, url, text, qrcode, file", value)
+			if !isValidType(value) {
+				return options, fmt.Errorf("invalid type value '%s'. Must be one of: html, md2html, url, text, qrcode, file, topic", value)
 			}
-			options.Convert = value
+			if options.Type != "" && options.Type != value {
+				return options, fmt.Errorf("--type and --convert must match when both are provided")
+			}
+			options.Type = value
 			index = nextIndex
 		case "--":
 			options.Args = append(options.Args, expandedArgs[index+1:]...)
@@ -122,7 +139,7 @@ func isBooleanShortFlag(shortFlag rune) bool {
 
 func isValueShortFlag(shortFlag rune) bool {
 	switch shortFlag {
-	case 'f', 's', 't', 'c':
+	case 'f', 's', 't', 'c', 'p', 'i':
 		return true
 	default:
 		return false
@@ -164,7 +181,7 @@ func shouldPrependNew(args []string) bool {
 	}
 
 	switch args[0] {
-	case "new", "md", "qr", "file", "html", "text", "url", "ls", "export", "rm", "help", "completion", "version", "--help", "-h", "--version", "-v":
+	case "new", "md", "qr", "file", "html", "text", "url", "ls", "export", "rm", "topic", "help", "completion", "version", "--help", "-h", "--version", "-v":
 		return false
 	default:
 		return true
@@ -186,9 +203,9 @@ func nextValue(args []string, index int) (string, int, error) {
 	return args[index+1], index + 2, nil
 }
 
-func isValidConvert(value string) bool {
+func isValidType(value string) bool {
 	switch value {
-	case "html", "md2html", "url", "text", "qrcode", "file":
+	case "html", "md2html", "url", "text", "qrcode", "file", "topic":
 		return true
 	default:
 		return false

@@ -7,7 +7,7 @@ import (
 )
 
 type shortcutCommand struct {
-	Convert           string
+	Type              string
 	DefaultTTLMinutes int
 	AllowFileContent  bool
 	RequireFilePath   bool
@@ -15,32 +15,32 @@ type shortcutCommand struct {
 
 var shortcutCommands = map[string]shortcutCommand{
 	"md": {
-		Convert:           "md2html",
+		Type:              "md2html",
 		DefaultTTLMinutes: 10080,
 		AllowFileContent:  true,
 	},
 	"qr": {
-		Convert:           "qrcode",
+		Type:              "qrcode",
 		DefaultTTLMinutes: 10080,
 		AllowFileContent:  true,
 	},
 	"file": {
-		Convert:           "file",
+		Type:              "file",
 		DefaultTTLMinutes: 10080,
 		RequireFilePath:   true,
 	},
 	"html": {
-		Convert:           "html",
+		Type:              "html",
 		DefaultTTLMinutes: 10080,
 		AllowFileContent:  true,
 	},
 	"text": {
-		Convert:           "text",
+		Type:              "text",
 		DefaultTTLMinutes: 10080,
 		AllowFileContent:  true,
 	},
 	"url": {
-		Convert:           "url",
+		Type:              "url",
 		DefaultTTLMinutes: 10080,
 		AllowFileContent:  true,
 	},
@@ -57,11 +57,11 @@ func parseShortcutOptions(command string, args []string) (post.NewOptions, error
 		return options, err
 	}
 
-	if options.Convert != "" && options.Convert != definition.Convert {
-		return options, fmt.Errorf("option --convert is not supported with shortcut command '%s'", command)
+	if options.Type != "" && options.Type != definition.Type {
+		return options, fmt.Errorf("option --type/--convert is not supported with shortcut command '%s'", command)
 	}
 
-	options.Convert = definition.Convert
+	options.Type = definition.Type
 	if options.TTL == nil {
 		defaultTTL := definition.DefaultTTLMinutes
 		options.TTL = &defaultTTL

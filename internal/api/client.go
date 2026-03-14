@@ -21,11 +21,12 @@ type Client struct {
 }
 
 type JSONRequest struct {
-	Path    string `json:"path,omitempty"`
-	URL     string `json:"url,omitempty"`
-	TTL     *int   `json:"ttl,omitempty"`
-	Type    string `json:"type,omitempty"`
-	Convert string `json:"convert,omitempty"`
+	Path  string `json:"path,omitempty"`
+	URL   string `json:"url,omitempty"`
+	Title string `json:"title,omitempty"`
+	Topic string `json:"topic,omitempty"`
+	TTL   *int   `json:"ttl,omitempty"`
+	Type  string `json:"type,omitempty"`
 }
 
 type APIErrorPayload struct {
@@ -64,7 +65,7 @@ func (client *Client) PostJSON(ctx context.Context, method string, payload JSONR
 	return client.do(request)
 }
 
-func (client *Client) Get(ctx context.Context, path string, export bool) ([]byte, error) {
+func (client *Client) Get(ctx context.Context, payload JSONRequest, export bool) ([]byte, error) {
 	request, err := client.newRequest(ctx, http.MethodGet, "/", nil)
 	if err != nil {
 		return nil, err
@@ -74,8 +75,7 @@ func (client *Client) Get(ctx context.Context, path string, export bool) ([]byte
 		request.Header.Set("X-Export", "true")
 	}
 
-	if path != "" {
-		payload := JSONRequest{Path: path}
+	if payload != (JSONRequest{}) {
 		body, marshalErr := json.Marshal(payload)
 		if marshalErr != nil {
 			return nil, fmt.Errorf("marshal request: %w", marshalErr)
@@ -88,8 +88,7 @@ func (client *Client) Get(ctx context.Context, path string, export bool) ([]byte
 	return client.do(request)
 }
 
-func (client *Client) Delete(ctx context.Context, path string, export bool) ([]byte, error) {
-	payload := JSONRequest{Path: path}
+func (client *Client) Delete(ctx context.Context, payload JSONRequest, export bool) ([]byte, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
@@ -113,6 +112,8 @@ func (client *Client) UploadFile(
 	method string,
 	filePath string,
 	slug string,
+	title string,
+	topic string,
 	ttl *int,
 	export bool,
 ) ([]byte, error) {
@@ -136,6 +137,16 @@ func (client *Client) UploadFile(
 	if slug != "" {
 		if err := writer.WriteField("path", slug); err != nil {
 			return nil, fmt.Errorf("write path field: %w", err)
+		}
+	}
+	if title != "" {
+		if err := writer.WriteField("title", title); err != nil {
+			return nil, fmt.Errorf("write title field: %w", err)
+		}
+	}
+	if topic != "" {
+		if err := writer.WriteField("topic", topic); err != nil {
+			return nil, fmt.Errorf("write topic field: %w", err)
 		}
 	}
 	if ttl != nil {

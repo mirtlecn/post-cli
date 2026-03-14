@@ -84,6 +84,13 @@ func (app *App) Run(ctx context.Context, args []string) error {
 		}
 		service := newPostService(host, token, app.stdin, app.stderr)
 		return app.runRemove(ctx, service, args)
+	case "topic":
+		host, token, _, err := loadRuntimeConfig()
+		if err != nil {
+			return err
+		}
+		service := newPostService(host, token, app.stdin, app.stderr)
+		return app.runTopic(ctx, service, args)
 	case "help", "-h", "--help":
 		_, _ = io.WriteString(app.stdout, helpText)
 		return nil
@@ -185,6 +192,52 @@ func (app *App) runRemove(ctx context.Context, service *post.Service, args []str
 	}
 	_, _ = io.WriteString(app.stdout, output)
 	return nil
+}
+
+func (app *App) runTopic(ctx context.Context, service *post.Service, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: post topic <new|ls|rm> [args]")
+	}
+
+	switch args[0] {
+	case "new":
+		if len(args) != 2 {
+			return fmt.Errorf("usage: post topic new <topic>")
+		}
+		output, err := service.CreateTopic(ctx, args[1], true)
+		if err != nil {
+			return err
+		}
+		_, _ = io.WriteString(app.stdout, output)
+		return nil
+	case "ls":
+		path, export, err := parsePathExportOptions(args[1:], "ls")
+		if err != nil {
+			return err
+		}
+		output, err := service.ListTopics(ctx, path, export)
+		if err != nil {
+			return err
+		}
+		_, _ = io.WriteString(app.stdout, output)
+		return nil
+	case "rm":
+		path, export, err := parsePathExportOptions(args[1:], "rm")
+		if err != nil {
+			return err
+		}
+		if path == "" {
+			return fmt.Errorf("usage: post topic rm [-x|--export] <topic>")
+		}
+		output, err := service.RemoveTopic(ctx, path, export)
+		if err != nil {
+			return err
+		}
+		_, _ = io.WriteString(app.stdout, output)
+		return nil
+	default:
+		return fmt.Errorf("unknown topic command '%s'. Try: post help", args[0])
+	}
 }
 
 func (app *App) runVersion() error {

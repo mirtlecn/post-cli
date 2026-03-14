@@ -18,9 +18,9 @@ import (
 
 type APIClient interface {
 	PostJSON(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error)
-	Get(ctx context.Context, path string, export bool) ([]byte, error)
-	Delete(ctx context.Context, path string, export bool) ([]byte, error)
-	UploadFile(ctx context.Context, method string, filePath string, slug string, ttl *int, export bool) ([]byte, error)
+	Get(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error)
+	Delete(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error)
+	UploadFile(ctx context.Context, method string, filePath string, slug string, title string, topic string, ttl *int, export bool) ([]byte, error)
 }
 
 type Service struct {
@@ -32,12 +32,14 @@ type Service struct {
 
 type NewOptions struct {
 	Slug           string
+	Title          string
+	Topic          string
 	TTL            *int
 	SkipConfirm    bool
 	ReadClipboard  bool
 	WriteClipboard bool
 	FilePath       string
-	Convert        string
+	Type           string
 	Method         string
 	Export         bool
 	Args           []string
@@ -66,12 +68,16 @@ func NewService(client APIClient, clipboardService clipboard.Service, stdin io.R
 }
 
 func (service *Service) New(ctx context.Context, options NewOptions) (Result, error) {
+	if err := validateNewOptions(options); err != nil {
+		return Result{}, err
+	}
+
 	content, label, err := service.resolveContent(options)
 	if err != nil {
 		return Result{}, err
 	}
 
-	requestType := resolveRequestType(options.Convert)
+	requestType := resolveRequestType(options.Type)
 	if err := validateURLContent(requestType, content); err != nil {
 		return Result{}, err
 	}
@@ -88,15 +94,25 @@ func (service *Service) New(ctx context.Context, options NewOptions) (Result, er
 	}
 
 	var responseBody []byte
-	if options.Convert == "file" {
-		responseBody, err = service.client.UploadFile(ctx, options.Method, options.FilePath, options.Slug, options.TTL, options.Export)
+	if options.Type == "file" {
+		responseBody, err = service.client.UploadFile(
+			ctx,
+			options.Method,
+			options.FilePath,
+			options.Slug,
+			options.Title,
+			options.Topic,
+			options.TTL,
+			options.Export,
+		)
 	} else {
 		payload := api.JSONRequest{
-			Path:    options.Slug,
-			URL:     content,
-			TTL:     options.TTL,
-			Type:    requestType,
-			Convert: options.Convert,
+			Path:  options.Slug,
+			URL:   content,
+			Title: options.Title,
+			Topic: options.Topic,
+			TTL:   options.TTL,
+			Type:  requestType,
 		}
 		responseBody, err = service.client.PostJSON(ctx, options.Method, payload, options.Export)
 	}
@@ -137,7 +153,7 @@ func (service *Service) New(ctx context.Context, options NewOptions) (Result, er
 }
 
 func (service *Service) List(ctx context.Context, path string, export bool) (string, error) {
-	body, err := service.client.Get(ctx, path, export)
+	body, err := service.client.Get(ctx, api.JSONRequest{Path: path}, export)
 	if err != nil {
 		return "", err
 	}
@@ -149,7 +165,41 @@ func (service *Service) Export(ctx context.Context, path string) (string, error)
 }
 
 func (service *Service) Remove(ctx context.Context, path string, export bool) (string, error) {
-	body, err := service.client.Delete(ctx, path, export)
+	body, err := service.client.Delete(ctx, api.JSONRequest{Path: path}, export)
+	if err != nil {
+		return "", err
+	}
+	return formatJSON(body)
+}
+
+func (service *Service) ListTopics(ctx context.Context, path string, export bool) (string, error) {
+	payload := api.JSONRequest{Type: "topic"}
+	if path != "" {
+		payload.Path = path
+	}
+	body, err := service.client.Get(ctx, payload, export)
+	if err != nil {
+		return "", err
+	}
+	return formatJSON(body)
+}
+
+func (service *Service) CreateTopic(ctx context.Context, path string, export bool) (string, error) {
+	body, err := service.client.PostJSON(ctx, http.MethodPost, api.JSONRequest{
+		Path: path,
+		Type: "topic",
+	}, export)
+	if err != nil {
+		return "", err
+	}
+	return formatJSON(body)
+}
+
+func (service *Service) RemoveTopic(ctx context.Context, path string, export bool) (string, error) {
+	body, err := service.client.Delete(ctx, api.JSONRequest{
+		Path: path,
+		Type: "topic",
+	}, export)
 	if err != nil {
 		return "", err
 	}
@@ -157,9 +207,9 @@ func (service *Service) Remove(ctx context.Context, path string, export bool) (s
 }
 
 func (service *Service) resolveContent(options NewOptions) (string, string, error) {
-	if options.Convert == "file" {
+	if options.Type == "file" {
 		if options.FilePath == "" {
-			return "", "", fmt.Errorf("-c file requires -f <path>")
+			return "", "", fmt.Errorf("--type file requires -f <path>")
 		}
 		if _, err := os.Stat(options.FilePath); err != nil {
 			return "", "", fmt.Errorf("file not found: %s", options.FilePath)
@@ -211,13 +261,8 @@ func (service *Service) resolveContent(options NewOptions) (string, string, erro
 	return content, "[Clipboard]", nil
 }
 
-func resolveRequestType(convert string) string {
-	switch convert {
-	case "html", "url", "text":
-		return convert
-	default:
-		return ""
-	}
+func resolveRequestType(value string) string {
+	return value
 }
 
 func validateURLContent(requestType string, content string) error {
@@ -253,10 +298,16 @@ func writeConfirmPreview(writer io.Writer, label string, content string, options
 	if options.Slug != "" {
 		writeConfirmField(writer, "slug", options.Slug)
 	}
+	if options.Topic != "" {
+		writeConfirmField(writer, "topic", options.Topic)
+	}
+	if options.Title != "" {
+		writeConfirmField(writer, "title", options.Title)
+	}
 	if options.TTL != nil {
 		writeConfirmField(writer, "ttl", fmt.Sprintf("%d min", *options.TTL))
 	}
-	if typeLabel := formatConfirmType(options.Convert, requestType); typeLabel != "" {
+	if typeLabel := formatConfirmType(options.Type, requestType); typeLabel != "" {
 		writeConfirmField(writer, "type", typeLabel)
 	}
 	if options.Export {
@@ -331,8 +382,8 @@ func truncateConfirmLine(value string, maxLength int) string {
 	return string(runes[:maxLength]) + "..."
 }
 
-func formatConfirmType(convert string, requestType string) string {
-	switch convert {
+func formatConfirmType(value string, requestType string) string {
+	switch value {
 	case "":
 		return requestType
 	case "md2html":
@@ -345,7 +396,27 @@ func formatConfirmType(convert string, requestType string) string {
 	if requestType != "" {
 		return requestType
 	}
-	return convert
+	return value
+}
+
+func validateNewOptions(options NewOptions) error {
+	if options.TTL != nil && *options.TTL < 0 {
+		return fmt.Errorf("ttl must be a non-negative number")
+	}
+	if options.Topic == "" {
+		return nil
+	}
+	if options.Title == "" {
+		return fmt.Errorf("--title is required when --topic is set")
+	}
+	if options.Slug == "" {
+		return nil
+	}
+	topicPrefix := options.Topic + "/"
+	if strings.Contains(options.Slug, "/") && !strings.HasPrefix(options.Slug, topicPrefix) {
+		return fmt.Errorf("slug must start with '%s' when --topic %s is set", topicPrefix, options.Topic)
+	}
+	return nil
 }
 
 func formatJSON(body []byte) (string, error) {

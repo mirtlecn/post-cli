@@ -15,25 +15,25 @@ import (
 
 type stubClient struct {
 	postJSONFunc   func(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error)
-	getFunc        func(ctx context.Context, path string, export bool) ([]byte, error)
-	deleteFunc     func(ctx context.Context, path string, export bool) ([]byte, error)
-	uploadFileFunc func(ctx context.Context, method string, filePath string, slug string, ttl *int, export bool) ([]byte, error)
+	getFunc        func(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error)
+	deleteFunc     func(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error)
+	uploadFileFunc func(ctx context.Context, method string, filePath string, slug string, title string, topic string, ttl *int, export bool) ([]byte, error)
 }
 
 func (client *stubClient) PostJSON(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
 	return client.postJSONFunc(ctx, method, payload, export)
 }
 
-func (client *stubClient) Get(ctx context.Context, path string, export bool) ([]byte, error) {
-	return client.getFunc(ctx, path, export)
+func (client *stubClient) Get(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
+	return client.getFunc(ctx, payload, export)
 }
 
-func (client *stubClient) Delete(ctx context.Context, path string, export bool) ([]byte, error) {
-	return client.deleteFunc(ctx, path, export)
+func (client *stubClient) Delete(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
+	return client.deleteFunc(ctx, payload, export)
 }
 
-func (client *stubClient) UploadFile(ctx context.Context, method string, filePath string, slug string, ttl *int, export bool) ([]byte, error) {
-	return client.uploadFileFunc(ctx, method, filePath, slug, ttl, export)
+func (client *stubClient) UploadFile(ctx context.Context, method string, filePath string, slug string, title string, topic string, ttl *int, export bool) ([]byte, error) {
+	return client.uploadFileFunc(ctx, method, filePath, slug, title, topic, ttl, export)
 }
 
 type stubClipboard struct {
@@ -134,7 +134,7 @@ func TestNewWritesAlignedConfirmationPreview(t *testing.T) {
 	result, err := service.New(context.Background(), NewOptions{
 		Method:        http.MethodPost,
 		TTL:           &ttl,
-		Convert:       "text",
+		Type:          "text",
 		StdinTTY:      true,
 		ReadClipboard: true,
 		Confirm: func(_ string) (bool, error) {
@@ -167,7 +167,7 @@ func TestNewTruncatesLongConfirmationContent(t *testing.T) {
 	result, err := service.New(context.Background(), NewOptions{
 		Method:   http.MethodPost,
 		Args:     []string{longText},
-		Convert:  "text",
+		Type:     "text",
 		StdinTTY: true,
 		Confirm: func(_ string) (bool, error) {
 			return false, nil
@@ -198,7 +198,7 @@ func TestNewAlignsMultilineConfirmationContent(t *testing.T) {
 	result, err := service.New(context.Background(), NewOptions{
 		Method:   http.MethodPost,
 		Args:     []string{"line1\nline2 start\nline3 end\nline4 extra"},
-		Convert:  "md2html",
+		Type:     "md2html",
 		StdinTTY: true,
 		Confirm: func(_ string) (bool, error) {
 			return false, nil
@@ -237,7 +237,7 @@ func TestNewAcceptsStandardURLContent(t *testing.T) {
 
 	result, err := service.New(context.Background(), NewOptions{
 		Args:        []string{"https://example.com/docs"},
-		Convert:     "url",
+		Type:        "url",
 		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    true,
@@ -262,7 +262,7 @@ func TestNewAcceptsCustomURIScheme(t *testing.T) {
 
 	_, err := service.New(context.Background(), NewOptions{
 		Args:        []string{"obsidian://open?vault=demo"},
-		Convert:     "url",
+		Type:        "url",
 		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    true,
@@ -300,7 +300,7 @@ func TestNewRejectsURLWithoutScheme(t *testing.T) {
 
 	_, err := service.New(context.Background(), NewOptions{
 		Args:        []string{"example.com/path"},
-		Convert:     "url",
+		Type:        "url",
 		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    true,
@@ -315,7 +315,7 @@ func TestNewRejectsURLWithInvalidScheme(t *testing.T) {
 
 	_, err := service.New(context.Background(), NewOptions{
 		Args:        []string{"1demo://open"},
-		Convert:     "url",
+		Type:        "url",
 		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    true,
@@ -404,7 +404,7 @@ func TestNewUploadsFile(t *testing.T) {
 	}
 
 	service := NewService(&stubClient{
-		uploadFileFunc: func(_ context.Context, method string, uploadPath string, slug string, ttl *int, export bool) ([]byte, error) {
+		uploadFileFunc: func(_ context.Context, method string, uploadPath string, slug string, title string, topic string, ttl *int, export bool) ([]byte, error) {
 			if method != http.MethodPut {
 				t.Fatalf("unexpected method: %s", method)
 			}
@@ -413,6 +413,12 @@ func TestNewUploadsFile(t *testing.T) {
 			}
 			if slug != "demo" {
 				t.Fatalf("unexpected slug: %s", slug)
+			}
+			if title != "Demo title" {
+				t.Fatalf("unexpected title: %s", title)
+			}
+			if topic != "demo-topic" {
+				t.Fatalf("unexpected topic: %s", topic)
 			}
 			if ttl == nil || *ttl != 60 {
 				t.Fatalf("unexpected ttl: %v", ttl)
@@ -427,10 +433,12 @@ func TestNewUploadsFile(t *testing.T) {
 	ttl := 60
 	result, err := service.New(context.Background(), NewOptions{
 		FilePath:    filePath,
-		Convert:     "file",
+		Type:        "file",
 		Method:      http.MethodPut,
 		Export:      true,
 		Slug:        "demo",
+		Title:       "Demo title",
+		Topic:       "demo-topic",
 		TTL:         &ttl,
 		SkipConfirm: true,
 		StdinTTY:    true,
@@ -441,6 +449,100 @@ func TestNewUploadsFile(t *testing.T) {
 
 	if result.Stdout == "" || result.Stdout[0] != '{' {
 		t.Fatalf("unexpected export output: %q", result.Stdout)
+	}
+}
+
+func TestNewRequiresTitleWhenTopicIsSet(t *testing.T) {
+	service := NewService(&stubClient{}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+
+	_, err := service.New(context.Background(), NewOptions{
+		Args:        []string{"hello"},
+		Type:        "text",
+		Topic:       "anime",
+		Method:      http.MethodPost,
+		SkipConfirm: true,
+		StdinTTY:    true,
+	})
+	if err == nil || err.Error() != "--title is required when --topic is set" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestNewRejectsMismatchedTopicSlug(t *testing.T) {
+	service := NewService(&stubClient{}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+
+	_, err := service.New(context.Background(), NewOptions{
+		Args:        []string{"hello"},
+		Type:        "text",
+		Topic:       "anime",
+		Title:       "Castle Notes",
+		Slug:        "devlog/castle-notes",
+		Method:      http.MethodPost,
+		SkipConfirm: true,
+		StdinTTY:    true,
+	})
+	if err == nil || err.Error() != "slug must start with 'anime/' when --topic anime is set" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCreateTopicUsesTopicType(t *testing.T) {
+	service := NewService(&stubClient{
+		postJSONFunc: func(_ context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
+			if method != http.MethodPost || !export {
+				t.Fatalf("unexpected args: %s %v", method, export)
+			}
+			if payload.Path != "anime" || payload.Type != "topic" {
+				t.Fatalf("unexpected payload: %#v", payload)
+			}
+			return []byte(`{"surl":"https://sho.rt/anime","path":"anime","type":"topic","title":"anime","content":"0","ttl":null}`), nil
+		},
+	}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+
+	output, err := service.CreateTopic(context.Background(), "anime", true)
+	if err != nil {
+		t.Fatalf("CreateTopic returned error: %v", err)
+	}
+	if output == "" || output[0] != '{' {
+		t.Fatalf("unexpected output: %q", output)
+	}
+}
+
+func TestListTopicsUsesTopicType(t *testing.T) {
+	service := NewService(&stubClient{
+		getFunc: func(_ context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
+			if payload.Path != "anime" || payload.Type != "topic" || !export {
+				t.Fatalf("unexpected args: %#v %v", payload, export)
+			}
+			return []byte(`{"path":"anime","type":"topic","title":"anime","content":"1"}`), nil
+		},
+	}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+
+	output, err := service.ListTopics(context.Background(), "anime", true)
+	if err != nil {
+		t.Fatalf("ListTopics returned error: %v", err)
+	}
+	if output == "" || output[0] != '{' {
+		t.Fatalf("unexpected output: %q", output)
+	}
+}
+
+func TestRemoveTopicUsesTopicType(t *testing.T) {
+	service := NewService(&stubClient{
+		deleteFunc: func(_ context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
+			if payload.Path != "anime" || payload.Type != "topic" || export {
+				t.Fatalf("unexpected args: %#v %v", payload, export)
+			}
+			return []byte(`{"deleted":"anime","type":"topic","title":"anime","content":"1"}`), nil
+		},
+	}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+
+	output, err := service.RemoveTopic(context.Background(), "anime", false)
+	if err != nil {
+		t.Fatalf("RemoveTopic returned error: %v", err)
+	}
+	if output == "" {
+		t.Fatal("expected output")
 	}
 }
 
@@ -541,9 +643,9 @@ func TestNewFailsWhenClipboardReadNotEnabled(t *testing.T) {
 
 func TestListFormatsJSON(t *testing.T) {
 	service := NewService(&stubClient{
-		getFunc: func(_ context.Context, path string, export bool) ([]byte, error) {
-			if path != "demo" || !export {
-				t.Fatalf("unexpected args: %s %v", path, export)
+		getFunc: func(_ context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
+			if payload.Path != "demo" || payload.Type != "" || !export {
+				t.Fatalf("unexpected args: %#v %v", payload, export)
 			}
 			return []byte(`{"path":"demo","url":"hello"}`), nil
 		},
@@ -560,9 +662,9 @@ func TestListFormatsJSON(t *testing.T) {
 
 func TestRemoveUsesDelete(t *testing.T) {
 	service := NewService(&stubClient{
-		deleteFunc: func(_ context.Context, path string, export bool) ([]byte, error) {
-			if path != "demo" || export {
-				t.Fatalf("unexpected args: %s %v", path, export)
+		deleteFunc: func(_ context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
+			if payload.Path != "demo" || payload.Type != "" || export {
+				t.Fatalf("unexpected args: %#v %v", payload, export)
 			}
 			return []byte(`{"ok":true}`), nil
 		},
