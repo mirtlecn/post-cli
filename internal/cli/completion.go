@@ -27,6 +27,10 @@ func (app *App) runCompletion(args []string) error {
 }
 
 const bashCompletion = `# bash completion for post
+_post_topic_names() {
+  post topic ls 2>/dev/null | sed -n 's/^[[:space:]]*"path": "\(.*\)",$/\1/p'
+}
+
 _post_completion() {
   local current previous command
   COMPREPLY=()
@@ -54,6 +58,10 @@ _post_completion() {
       ;;
     completion)
       COMPREPLY=($(compgen -W "bash zsh powershell" -- "${current}"))
+      return 0
+      ;;
+    -p|--topic)
+      COMPREPLY=($(compgen -W "$(_post_topic_names)" -- "${current}"))
       return 0
       ;;
     -f|--file)
@@ -85,7 +93,11 @@ _post_completion() {
           COMPREPLY=()
           ;;
         ls|rm)
-          COMPREPLY=($(compgen -W "-x --export" -- "${current}"))
+          if [[ "${current}" == -* ]]; then
+            COMPREPLY=($(compgen -W "-x --export" -- "${current}"))
+          else
+            COMPREPLY=($(compgen -W "$(_post_topic_names)" -- "${current}"))
+          fi
           ;;
         *)
           COMPREPLY=($(compgen -W "new ls rm" -- "${current}"))
@@ -112,6 +124,12 @@ complete -F _post_completion post
 
 const zshCompletion = `#compdef post
 
+_post_topic_names() {
+  local -a topic_names
+  topic_names=(${(f)"$(post topic ls 2>/dev/null | sed -n 's/^[[:space:]]*\"path\": \"\(.*\)\",$/\1/p')"})
+  _describe 'topic' topic_names
+}
+
 _post() {
   local -a subcommands
   subcommands=(
@@ -136,7 +154,7 @@ _post() {
     '(-f --file)'{-f,--file}'[Read content from file]:file:_files'
     '(-s --slug)'{-s,--slug}'[Custom slug/path]:slug: '
     '(-i --title)'{-i,--title}'[Set item title]:title: '
-    '(-p --topic)'{-p,--topic}'[Attach item to a topic]:topic: '
+    '(-p --topic)'{-p,--topic}'[Attach item to a topic]:topic:_post_topic_names'
     '(-t --ttl)'{-t,--ttl}'[Expiration time in minutes (0 means never)]:minutes: '
     '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]'
     '(-u --update)'{-u,--update}'[Overwrite if slug already exists]'
@@ -152,7 +170,7 @@ _post() {
     '(-f --file)'{-f,--file}'[Read content from file]:file:_files'
     '(-s --slug)'{-s,--slug}'[Custom slug/path]:slug: '
     '(-i --title)'{-i,--title}'[Set item title]:title: '
-    '(-p --topic)'{-p,--topic}'[Attach item to a topic]:topic: '
+    '(-p --topic)'{-p,--topic}'[Attach item to a topic]:topic:_post_topic_names'
     '(-t --ttl)'{-t,--ttl}'[Override expiration time in minutes]:minutes: '
     '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]'
     '(-u --update)'{-u,--update}'[Overwrite if slug already exists]'
@@ -178,7 +196,7 @@ _post() {
       _arguments -s \
         '(-s --slug)'{-s,--slug}'[Custom slug/path]:slug: ' \
         '(-i --title)'{-i,--title}'[Set item title]:title: ' \
-        '(-p --topic)'{-p,--topic}'[Attach item to a topic]:topic: ' \
+        '(-p --topic)'{-p,--topic}'[Attach item to a topic]:topic:_post_topic_names' \
         '(-t --ttl)'{-t,--ttl}'[Override expiration time in minutes]:minutes: ' \
         '(-u --update)'{-u,--update}'[Overwrite if slug already exists]' \
         '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]' \
@@ -210,10 +228,10 @@ _post() {
           _arguments '1:topic: '
           ;;
         ls)
-          _arguments -s '(-x --export)'{-x,--export}'[Return full content]' '*:topic: '
+          _arguments -s '(-x --export)'{-x,--export}'[Return full content]' '*:topic:_post_topic_names'
           ;;
         rm)
-          _arguments -s '(-x --export)'{-x,--export}'[Return full content]' '1:topic: '
+          _arguments -s '(-x --export)'{-x,--export}'[Return full content]' '*:topic:_post_topic_names'
           ;;
         *)
           _arguments '1:subcommand:(new ls rm)' '*::arg: '
@@ -249,6 +267,15 @@ compdef _post post
 const powerShellCompletion = `Register-ArgumentCompleter -Native -CommandName post -ScriptBlock {
     param($wordToComplete, $commandAst, $cursorPosition)
 
+    function Get-PostTopicNames {
+        try {
+            $result = post topic ls 2>$null | ConvertFrom-Json
+            $result | ForEach-Object { $_.path }
+        } catch {
+            @()
+        }
+    }
+
     $tokens = $commandAst.CommandElements | ForEach-Object { $_.Extent.Text }
     $subcommands = @('new', 'text', 'md', 'file', 'url', 'html', 'qr', 'ls', 'export', 'rm', 'topic', 'version', 'completion', 'help')
     $newOptions = @('-f', '--file', '-s', '--slug', '-i', '--title', '-p', '--topic', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-r', '--read-clipboard', '-w', '--write-clipboard', '-c', '--convert', '--type')
@@ -283,6 +310,13 @@ const powerShellCompletion = `Register-ArgumentCompleter -Native -CommandName po
         return
     }
 
+    if ($previous -in @('-p', '--topic')) {
+        Get-PostTopicNames | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+        }
+        return
+    }
+
     if ($command -eq 'completion') {
         $shells | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
             [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
@@ -299,6 +333,13 @@ const powerShellCompletion = `Register-ArgumentCompleter -Native -CommandName po
         }
 
         $topicCommand = $tokens[2]
+        if ($topicCommand -in @('ls', 'rm') -and -not ($wordToComplete -and $wordToComplete.StartsWith('-'))) {
+            Get-PostTopicNames | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+                [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+            }
+            return
+        }
+
         $candidates = switch ($topicCommand) {
             'ls' { $lsOptions }
             'rm' { $lsOptions }

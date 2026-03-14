@@ -214,6 +214,9 @@ func TestBashCompletionIncludesClipboardFlagsAndFilePathCompletion(t *testing.T)
 	if !strings.Contains(output, "--type") || !strings.Contains(output, "topic version completion help") {
 		t.Fatalf("type/topic completion missing in bash completion: %q", output)
 	}
+	if !strings.Contains(output, "_post_topic_names()") || !strings.Contains(output, "-p|--topic)") {
+		t.Fatalf("dynamic topic completion missing in bash completion: %q", output)
+	}
 	if !strings.Contains(output, "COMPREPLY=($(compgen -W \"new ls rm\" -- \"${current}\"))") {
 		t.Fatalf("topic subcommand completion missing in bash completion: %q", output)
 	}
@@ -252,6 +255,9 @@ func TestPowerShellCompletionIncludesClipboardFlagsAndFilePathCompletion(t *test
 	if !strings.Contains(output, "--type") || !strings.Contains(output, "$topicSubcommands = @('new', 'ls', 'rm')") {
 		t.Fatalf("type/topic completion missing in powershell completion: %q", output)
 	}
+	if !strings.Contains(output, "function Get-PostTopicNames") || !strings.Contains(output, "$previous -in @('-p', '--topic')") {
+		t.Fatalf("dynamic topic completion missing in powershell completion: %q", output)
+	}
 	if !strings.Contains(output, "$fileOptions = @(") || !strings.Contains(output, "'file' {\n            if ($wordToComplete -and $wordToComplete.StartsWith('-')) {") {
 		t.Fatalf("file path completion missing in powershell completion: %q", output)
 	}
@@ -276,6 +282,12 @@ func TestCompletionPrioritizesFrequentCommands(t *testing.T) {
 	}
 	if !strings.Contains(output, "'topic:Manage topics'") || !strings.Contains(output, "--type") {
 		t.Fatalf("type/topic completion missing in zsh completion: %q", output)
+	}
+	if !strings.Contains(output, "_post_topic_names()") || !strings.Contains(output, ":topic:_post_topic_names") {
+		t.Fatalf("dynamic topic completion missing in zsh completion: %q", output)
+	}
+	if !strings.Contains(output, "'*:topic:_post_topic_names'") {
+		t.Fatalf("topic rm dynamic completion missing in zsh completion: %q", output)
 	}
 	if !strings.Contains(output, "topic)\n      shift words\n      (( CURRENT -= 1 ))") || !strings.Contains(output, "'1:subcommand:(new ls rm)'") {
 		t.Fatalf("topic subcommand completion missing in zsh completion: %q", output)
