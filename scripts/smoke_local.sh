@@ -20,6 +20,7 @@ SAMPLE_FILE="$TMP_DIR/sample.txt"
 CONFIG_FILE="$TMP_DIR/config.json"
 PREFIX="smoke-$(date +%s)"
 TOPIC_NAME="$PREFIX-topic"
+TOPIC_EXPORT_NAME="$PREFIX-topic-export"
 
 printf 'file payload\n' > "$SAMPLE_FILE"
 cat > "$CONFIG_FILE" <<EOF
@@ -55,7 +56,9 @@ run_success "completion-zsh" ./post completion zsh
 run_success "completion-powershell" ./post completion powershell
 run_success "ls-all" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls
 run_success "topic-new" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic new "$TOPIC_NAME"
+run_success "topic-new-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic new "$TOPIC_EXPORT_NAME"
 run_success "topic-ls-all" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic ls
+run_success "topic-ls-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic ls -x "$TOPIC_NAME"
 run_success "topic-ls-one" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic ls "$TOPIC_NAME"
 run_success "new-text" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -s "$PREFIX-text" "hello text"
 run_success "new-write-clipboard" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -w -s "$PREFIX-write-clipboard" "clipboard write text"
@@ -70,6 +73,8 @@ run_success "new-update-initial" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TO
 run_success "new-update-overwrite" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -u -s "$PREFIX-update" "after update"
 run_success "new-ttl-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -x -s "$PREFIX-ttl" -t 60 "ttl text"
 run_success "new-ttl-zero" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -x -s "$PREFIX-ttl-zero" -t 0 "ttl zero text"
+run_success "new-type-long-option" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y --type text -s "$PREFIX-type-long" "typed via long option"
+run_success "new-type-convert-match" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y --type text --convert text -s "$PREFIX-type-match" "type and convert match"
 run_success "new-type-text" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -s "$PREFIX-type-text" -c text "typed text"
 run_success "new-type-html" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -s "$PREFIX-type-html" -c html "<h1>Hello</h1>"
 run_success "new-type-url" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -s "$PREFIX-type-url" -c url "https://example.com"
@@ -93,6 +98,7 @@ run_success "export-topic-item" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOK
 run_success "config-file" env POST_HOST= POST_TOKEN= POST_CONFIG="$CONFIG_FILE" ./post ls "$PREFIX-text"
 run_success "rm-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post rm -x "$PREFIX-file-content"
 run_success "rm" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post rm "$PREFIX-export"
+run_success "topic-rm-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic rm -x "$TOPIC_EXPORT_NAME"
 run_success "topic-rm" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic rm "$TOPIC_NAME"
 
 run_failure "missing-config" env POST_HOST= POST_TOKEN= POST_CONFIG="$TMP_DIR/not-found-config.json" ./post ls
@@ -102,6 +108,9 @@ run_failure "clipboard-read-disabled" env POST_HOST="$POST_HOST" POST_TOKEN="$PO
 run_failure "missing-file-flag" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -c file
 run_failure "missing-file" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -f "$TMP_DIR/not-found.txt"
 run_failure "missing-rm-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post rm
+run_failure "topic-new-missing-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic new
+run_failure "topic-rm-missing-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic rm
+run_failure "topic-unknown-command" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic oops
 run_failure "shortcut-file-missing-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y
 run_failure "shortcut-file-read-clipboard" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y -r -f "$SAMPLE_FILE"
 run_failure "shortcut-file-conflicting-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y -f "$SAMPLE_FILE" "$SAMPLE_FILE"
@@ -110,7 +119,9 @@ run_failure "unknown-option" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN"
 run_failure "invalid-ttl" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -t nope text
 run_failure "negative-ttl" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -t -1 text
 run_failure "shortcut-invalid-ttl" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post text -y -t nope text
+run_failure "type-convert-mismatch" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y --type text --convert html text
 run_failure "topic-missing-title" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -p "$PREFIX-missing-title" "topic text"
 run_failure "topic-path-mismatch" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -p "$PREFIX-topic-a" -i "Mismatch" -s "$PREFIX-topic-b/item" "topic text"
+run_failure "topic-not-found" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -p "$PREFIX-missing-topic" -i "Missing Topic" -s "$PREFIX-missing-topic/item" "topic text"
 run_failure "duplicate-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -s "$PREFIX-text" "duplicate text"
 run_failure "missing-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$PREFIX-not-found"

@@ -64,6 +64,23 @@ func TestParseNewOptionsSupportsTypeTopicAndTitle(t *testing.T) {
 	}
 }
 
+func TestParseNewOptionsAllowsMatchingTypeAndConvert(t *testing.T) {
+	options, err := parseNewOptions([]string{"--type", "text", "--convert", "text", "hello"})
+	if err != nil {
+		t.Fatalf("parseNewOptions returned error: %v", err)
+	}
+	if options.Type != "text" {
+		t.Fatalf("unexpected type: %s", options.Type)
+	}
+}
+
+func TestParseNewOptionsRejectsMismatchedTypeAndConvert(t *testing.T) {
+	_, err := parseNewOptions([]string{"--type", "text", "--convert", "html", "hello"})
+	if err == nil || err.Error() != "--type and --convert must match when both are provided" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestParseNewOptionsSupportsCombinedBooleanFlags(t *testing.T) {
 	options, err := parseNewOptions([]string{"-uyx", "hello"})
 	if err != nil {
