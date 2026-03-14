@@ -60,13 +60,17 @@ _post_completion() {
 
   case "${command}" in
     new)
-      COMPREPLY=($(compgen -W "-f --file -s --slug -t --ttl -y --no-confirm -u --update -x --export -c --convert" -- "${current}"))
+      COMPREPLY=($(compgen -W "-f --file -s --slug -t --ttl -y --no-confirm -u --update -x --export -r --read-clipboard -w --write-clipboard -c --convert" -- "${current}"))
       ;;
     md|qr|html|text|url)
-      COMPREPLY=($(compgen -W "-f --file -s --slug -t --ttl -y --no-confirm -u --update -x --export" -- "${current}"))
+      COMPREPLY=($(compgen -W "-f --file -s --slug -t --ttl -y --no-confirm -u --update -x --export -r --read-clipboard -w --write-clipboard" -- "${current}"))
       ;;
     file)
-      COMPREPLY=($(compgen -W "-f --file -s --slug -t --ttl -y --no-confirm -u --update -x --export" -- "${current}"))
+      if [[ "${current}" == -* ]]; then
+        COMPREPLY=($(compgen -W "-f --file -s --slug -t --ttl -y --no-confirm -u --update -x --export -w --write-clipboard" -- "${current}"))
+      else
+        COMPREPLY=($(compgen -f -- "${current}"))
+      fi
       ;;
     ls|rm)
       COMPREPLY=($(compgen -W "-x --export" -- "${current}"))
@@ -117,6 +121,8 @@ _post() {
     '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]'
     '(-u --update)'{-u,--update}'[Overwrite if slug already exists]'
     '(-x --export)'{-x,--export}'[Return full create/update response]'
+    '(-r --read-clipboard)'{-r,--read-clipboard}'[Read content from clipboard]'
+    '(-w --write-clipboard)'{-w,--write-clipboard}'[Copy result URL to clipboard]'
     '(-c --convert)'{-c,--convert}'[Convert/type before uploading]:convert:(html md2html url text qrcode file)'
   )
 
@@ -128,6 +134,8 @@ _post() {
     '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]'
     '(-u --update)'{-u,--update}'[Overwrite if slug already exists]'
     '(-x --export)'{-x,--export}'[Return full create/update response]'
+    '(-r --read-clipboard)'{-r,--read-clipboard}'[Read content from clipboard]'
+    '(-w --write-clipboard)'{-w,--write-clipboard}'[Copy result URL to clipboard]'
   )
 
   case $words[2] in
@@ -144,6 +152,7 @@ _post() {
         '(-u --update)'{-u,--update}'[Overwrite if slug already exists]' \
         '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]' \
         '(-x --export)'{-x,--export}'[Return full create/update response]' \
+        '(-w --write-clipboard)'{-w,--write-clipboard}'[Copy result URL to clipboard]' \
         '(-f --file)'{-f,--file}'[Upload file path]:file:_files' \
         '1:file:_files'
       ;;
@@ -183,8 +192,9 @@ const powerShellCompletion = `Register-ArgumentCompleter -Native -CommandName po
 
     $tokens = $commandAst.CommandElements | ForEach-Object { $_.Extent.Text }
     $subcommands = @('new', 'text', 'md', 'file', 'url', 'html', 'qr', 'ls', 'export', 'rm', 'version', 'completion', 'help')
-    $newOptions = @('-f', '--file', '-s', '--slug', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-c', '--convert')
-    $shortcutOptions = @('-f', '--file', '-s', '--slug', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export')
+    $newOptions = @('-f', '--file', '-s', '--slug', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-r', '--read-clipboard', '-w', '--write-clipboard', '-c', '--convert')
+    $shortcutOptions = @('-f', '--file', '-s', '--slug', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-r', '--read-clipboard', '-w', '--write-clipboard')
+    $fileOptions = @('-f', '--file', '-s', '--slug', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-w', '--write-clipboard')
     $lsOptions = @('-x', '--export')
     $shells = @('bash', 'zsh', 'powershell')
     $convertValues = @('html', 'md2html', 'url', 'text', 'qrcode', 'file')
@@ -227,7 +237,16 @@ const powerShellCompletion = `Register-ArgumentCompleter -Native -CommandName po
         'html' { $shortcutOptions }
         'text' { $shortcutOptions }
         'url' { $shortcutOptions }
-        'file' { $shortcutOptions }
+        'file' {
+            if ($wordToComplete -and $wordToComplete.StartsWith('-')) {
+                $fileOptions
+            } else {
+                Get-ChildItem -Name -Path "$wordToComplete*" -ErrorAction SilentlyContinue | ForEach-Object {
+                    [System.Management.Automation.CompletionResult]::new($_, $_, 'ProviderItem', $_)
+                }
+                return
+            }
+        }
         'ls' { $lsOptions }
         'rm' { $lsOptions }
         default { @() }
