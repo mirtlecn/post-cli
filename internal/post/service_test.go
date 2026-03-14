@@ -90,6 +90,32 @@ func TestNewUsesArguments(t *testing.T) {
 	if result.Stdout != "https://sho.rt/abc\n" {
 		t.Fatalf("unexpected stdout: %q", result.Stdout)
 	}
+	if clipboard.written != "" {
+		t.Fatalf("expected no clipboard write without -w, got: %q", clipboard.written)
+	}
+}
+
+func TestNewWritesClipboardWhenEnabled(t *testing.T) {
+	clipboard := &stubClipboard{canWrite: true}
+	service := NewService(&stubClient{
+		postJSONFunc: func(_ context.Context, _ string, _ api.JSONRequest, _ bool) ([]byte, error) {
+			return []byte(`{"surl":"https://sho.rt/abc"}`), nil
+		},
+	}, clipboard, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+
+	result, err := service.New(context.Background(), NewOptions{
+		Args:           []string{"hello"},
+		Method:         http.MethodPost,
+		SkipConfirm:    true,
+		StdinTTY:       true,
+		WriteClipboard: true,
+	})
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	if result.Stderr == "" {
+		t.Fatal("expected clipboard copied message")
+	}
 	if clipboard.written != "https://sho.rt/abc" {
 		t.Fatalf("unexpected clipboard write: %q", clipboard.written)
 	}
@@ -231,9 +257,10 @@ func TestNewUsesClipboardWhenNoArgs(t *testing.T) {
 	}, &stubClipboard{readValue: "clipboard text"}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
 
 	result, err := service.New(context.Background(), NewOptions{
-		Method:      http.MethodPost,
-		SkipConfirm: true,
-		StdinTTY:    true,
+		Method:        http.MethodPost,
+		SkipConfirm:   true,
+		StdinTTY:      true,
+		ReadClipboard: true,
 	})
 	if err != nil {
 		t.Fatalf("New returned error: %v", err)
@@ -324,10 +351,11 @@ func TestNewReturnsClipboardWriteWarning(t *testing.T) {
 	}, &stubClipboard{canWrite: true, writeErr: errors.New("clipboard unavailable")}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
 
 	result, err := service.New(context.Background(), NewOptions{
-		Args:        []string{"hello"},
-		Method:      http.MethodPost,
-		SkipConfirm: true,
-		StdinTTY:    true,
+		Args:           []string{"hello"},
+		Method:         http.MethodPost,
+		SkipConfirm:    true,
+		StdinTTY:       true,
+		WriteClipboard: true,
 	})
 	if err != nil {
 		t.Fatalf("New returned error: %v", err)
@@ -360,15 +388,52 @@ func TestNewSkipsClipboardWriteWhenUnavailable(t *testing.T) {
 	}
 }
 
+func TestNewReturnsClipboardUnavailableWarningWhenWriteIsRequested(t *testing.T) {
+	service := NewService(&stubClient{
+		postJSONFunc: func(_ context.Context, _ string, _ api.JSONRequest, _ bool) ([]byte, error) {
+			return []byte(`{"surl":"https://sho.rt/abc"}`), nil
+		},
+	}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+
+	result, err := service.New(context.Background(), NewOptions{
+		Args:           []string{"hello"},
+		Method:         http.MethodPost,
+		SkipConfirm:    true,
+		StdinTTY:       true,
+		WriteClipboard: true,
+	})
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	if result.Stderr != "warning: clipboard write is unavailable\n" {
+		t.Fatalf("unexpected stderr: %q", result.Stderr)
+	}
+}
+
 func TestNewFailsWhenClipboardReadFails(t *testing.T) {
 	service := NewService(&stubClient{}, &stubClipboard{readErr: errors.New("clipboard unavailable")}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+
+	_, err := service.New(context.Background(), NewOptions{
+		Method:        http.MethodPost,
+		SkipConfirm:   true,
+		StdinTTY:      true,
+		ReadClipboard: true,
+	})
+	if err == nil || err.Error() != "clipboard unavailable; provide text, -f, or pipe stdin instead" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestNewFailsWhenClipboardReadNotEnabled(t *testing.T) {
+	service := NewService(&stubClient{}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
 
 	_, err := service.New(context.Background(), NewOptions{
 		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    true,
 	})
-	if err == nil || err.Error() != "clipboard unavailable; provide text, -f, or pipe stdin instead" {
+	if err == nil || err.Error() != "clipboard read is disabled; use -r/--read-clipboard, provide text, -f, or pipe stdin instead" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
