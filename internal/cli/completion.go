@@ -140,12 +140,18 @@ _post() {
 
   case $words[2] in
     new)
+      shift words
+      (( CURRENT -= 1 ))
       _arguments -s $new_options '*:text: '
       ;;
     md|qr|html|text|url)
+      shift words
+      (( CURRENT -= 1 ))
       _arguments -s $shortcut_options '*:text: '
       ;;
     file)
+      shift words
+      (( CURRENT -= 1 ))
       _arguments -s \
         '(-s --slug)'{-s,--slug}'[Custom slug/path]:slug: ' \
         '(-t --ttl)'{-t,--ttl}'[Override expiration time in minutes]:minutes: ' \
@@ -157,18 +163,28 @@ _post() {
         '1:file:_files'
       ;;
     ls)
+      shift words
+      (( CURRENT -= 1 ))
       _arguments -s '(-x --export)'{-x,--export}'[Return full content]' '*:path: '
       ;;
     export)
+      shift words
+      (( CURRENT -= 1 ))
       _arguments -s '*:path: '
       ;;
     rm)
+      shift words
+      (( CURRENT -= 1 ))
       _arguments -s '(-x --export)'{-x,--export}'[Return full content]' '1:path: '
       ;;
     completion)
+      shift words
+      (( CURRENT -= 1 ))
       _arguments '1:shell:(bash zsh powershell)'
       ;;
     version)
+      shift words
+      (( CURRENT -= 1 ))
       _arguments
       ;;
     *)

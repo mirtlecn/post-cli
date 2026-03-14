@@ -189,6 +189,9 @@ func TestCompletionPrioritizesFrequentCommands(t *testing.T) {
 	if !strings.Contains(output, "--read-clipboard") || !strings.Contains(output, "--write-clipboard") {
 		t.Fatalf("clipboard flags missing in zsh completion: %q", output)
 	}
+	if !strings.Contains(output, "shift words\n      (( CURRENT -= 1 ))\n      _arguments -s \\\n        '(-s --slug)'") {
+		t.Fatalf("zsh subcommand argument shifting missing for file command: %q", output)
+	}
 	if !strings.Contains(output, "1:file:_files") {
 		t.Fatalf("file path completion missing in zsh completion: %q", output)
 	}
