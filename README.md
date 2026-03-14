@@ -161,6 +161,10 @@ Run the local smoke test:
 POST_HOST=http://localhost:3000 POST_TOKEN=demo ./scripts/smoke_local.sh
 ```
 
+## SKILLs for AI Agents
+
+Install "/skills/" and ask your agent to 'Publish a note' or 'Upload a file' to create a new post.
+
 ## Credits
 
 MIT Licence
