@@ -9,7 +9,7 @@ import (
 )
 
 func TestParseNewOptions(t *testing.T) {
-	options, err := parseNewOptions([]string{"-s", "demo", "-t", "15", "-u", "-x", "-c", "text", "hello", "world"})
+	options, err := parseNewOptions([]string{"-s", "demo", "-t", "15", "-u", "-r", "-w", "-x", "-c", "text", "hello", "world"})
 	if err != nil {
 		t.Fatalf("parseNewOptions returned error: %v", err)
 	}
@@ -24,6 +24,12 @@ func TestParseNewOptions(t *testing.T) {
 	}
 	if !options.Export {
 		t.Fatal("expected export flag")
+	}
+	if !options.ReadClipboard {
+		t.Fatal("expected read clipboard flag")
+	}
+	if !options.WriteClipboard {
+		t.Fatal("expected write clipboard flag")
 	}
 	if len(options.Args) != 2 {
 		t.Fatalf("unexpected args: %#v", options.Args)
