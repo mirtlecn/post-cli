@@ -181,7 +181,42 @@ func TestNewTruncatesLongConfirmationContent(t *testing.T) {
 		t.Fatalf("unexpected stderr result: %q", result.Stderr)
 	}
 
-	expected := "content      " + strings.Repeat("a", 77) + "...\ntype         text\n\n"
+	expected := "content      " + strings.Repeat("a", 27) + "...\ntype         text\n\n"
+	if stderr.String() != expected {
+		t.Fatalf("unexpected preview: %q", stderr.String())
+	}
+}
+
+func TestNewAlignsMultilineConfirmationContent(t *testing.T) {
+	stderr := &bytes.Buffer{}
+	service := NewService(&stubClient{
+		postJSONFunc: func(_ context.Context, _ string, _ api.JSONRequest, _ bool) ([]byte, error) {
+			return []byte(`{"surl":"https://sho.rt/abc"}`), nil
+		},
+	}, &stubClipboard{}, bytes.NewBuffer(nil), stderr)
+
+	result, err := service.New(context.Background(), NewOptions{
+		Method:   http.MethodPost,
+		Args:     []string{"line1\nline2 start\nline3 end\nline4 extra"},
+		Convert:  "md2html",
+		StdinTTY: true,
+		Confirm: func(_ string) (bool, error) {
+			return false, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	if result.Stderr != "Aborted.\n" {
+		t.Fatalf("unexpected stderr result: %q", result.Stderr)
+	}
+
+	expected := "content      line1\n" +
+		"             line2 start\n" +
+		"             line3 end\n" +
+		"             ...\n" +
+		"type         markdown -> html\n\n"
 	if stderr.String() != expected {
 		t.Fatalf("unexpected preview: %q", stderr.String())
 	}

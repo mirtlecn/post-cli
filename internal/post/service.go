@@ -249,7 +249,7 @@ func hasValidURIScheme(content string) bool {
 }
 
 func writeConfirmPreview(writer io.Writer, label string, content string, options NewOptions, requestType string) {
-	writeConfirmField(writer, "content", truncateConfirmValue(resolveConfirmContent(label, content)))
+	writeConfirmContentField(writer, "content", resolveConfirmContent(label, content))
 	if options.Slug != "" {
 		writeConfirmField(writer, "slug", options.Slug)
 	}
@@ -272,6 +272,20 @@ func writeConfirmField(writer io.Writer, key string, value string) {
 	fmt.Fprintf(writer, "%-12s %s\n", key, value)
 }
 
+func writeConfirmContentField(writer io.Writer, key string, value string) {
+	lines := formatConfirmContentLines(value)
+	if len(lines) == 0 {
+		writeConfirmField(writer, key, "")
+		return
+	}
+
+	fmt.Fprintf(writer, "%-12s %s\n", key, lines[0])
+	indent := strings.Repeat(" ", 13)
+	for _, line := range lines[1:] {
+		fmt.Fprintf(writer, "%s%s\n", indent, line)
+	}
+}
+
 func resolveConfirmContent(label string, content string) string {
 	switch {
 	case strings.HasPrefix(label, "[File upload]: "):
@@ -285,15 +299,36 @@ func resolveConfirmContent(label string, content string) string {
 	}
 }
 
-func truncateConfirmValue(value string) string {
-	const maxConfirmValueLength = 80
+func formatConfirmContentLines(value string) []string {
+	const maxConfirmLines = 3
+	const maxConfirmLineLength = 27
 
+	normalized := strings.ReplaceAll(value, "\r\n", "\n")
+	normalized = strings.ReplaceAll(normalized, "\r", "\n")
+	rawLines := strings.Split(normalized, "\n")
+	if len(rawLines) == 0 {
+		return []string{""}
+	}
+
+	lines := make([]string, 0, maxConfirmLines+1)
+	for index, rawLine := range rawLines {
+		if index == maxConfirmLines {
+			lines = append(lines, "...")
+			break
+		}
+		lines = append(lines, truncateConfirmLine(rawLine, maxConfirmLineLength))
+	}
+
+	return lines
+}
+
+func truncateConfirmLine(value string, maxLength int) string {
 	runes := []rune(value)
-	if len(runes) <= maxConfirmValueLength {
+	if len(runes) <= maxLength {
 		return value
 	}
 
-	return string(runes[:maxConfirmValueLength-3]) + "..."
+	return string(runes[:maxLength]) + "..."
 }
 
 func formatConfirmType(convert string, requestType string) string {
