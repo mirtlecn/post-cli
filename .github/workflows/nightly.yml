@@ -5,6 +5,12 @@ on:
     branches:
       - main
       - master
+    paths:
+      - "cmd/**"
+      - "internal/**"
+      - "go.mod"
+      - "go.sum"
+      - ".goreleaser.yaml"
   workflow_dispatch:
 
 permissions:
