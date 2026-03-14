@@ -164,6 +164,43 @@ func TestRunCreateUsesAlignedConfirmationPrompt(t *testing.T) {
 	}
 }
 
+func TestRunCreatePromptsForPipedInput(t *testing.T) {
+	inputReader, inputWriter, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("create input pipe: %v", err)
+	}
+	defer inputReader.Close()
+
+	if _, err := inputWriter.WriteString("n\n"); err != nil {
+		t.Fatalf("write confirmation input: %v", err)
+	}
+	if err := inputWriter.Close(); err != nil {
+		t.Fatalf("close input writer: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	app := NewApp(inputReader, &stdout, &stderr, BuildInfo{})
+	service := post.NewService(&stubCreateClient{
+		postJSONFunc: func(_ context.Context, _ string, _ api.JSONRequest, _ bool) ([]byte, error) {
+			return []byte(`{"surl":"https://sho.rt/abc"}`), nil
+		},
+	}, &stubCreateClipboard{}, bytes.NewBufferString("piped content"), &stderr)
+
+	err = app.runCreate(context.Background(), service, post.NewOptions{}, false, "https://t.mirtle.cn")
+	if err != nil {
+		t.Fatalf("runCreate returned error: %v", err)
+	}
+
+	expectedStderr := "content      piped content\n\npost to      https://t.mirtle.cn\ncontinue?    [y/N] Aborted.\n"
+	if stderr.String() != expectedStderr {
+		t.Fatalf("unexpected stderr: %q", stderr.String())
+	}
+	if stdout.String() != "" {
+		t.Fatalf("unexpected stdout: %q", stdout.String())
+	}
+}
+
 func TestBashCompletionIncludesClipboardFlagsAndFilePathCompletion(t *testing.T) {
 	var stdout bytes.Buffer
 	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{}, BuildInfo{})

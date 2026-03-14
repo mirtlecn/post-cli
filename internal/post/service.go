@@ -76,7 +76,7 @@ func (service *Service) New(ctx context.Context, options NewOptions) (Result, er
 		return Result{}, err
 	}
 
-	if !options.SkipConfirm && options.StdinTTY && options.Confirm != nil {
+	if !options.SkipConfirm && options.Confirm != nil {
 		writeConfirmPreview(service.stderr, label, content, options, requestType)
 		accepted, confirmErr := options.Confirm(label)
 		if confirmErr != nil {
