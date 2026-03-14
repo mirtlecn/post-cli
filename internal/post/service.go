@@ -113,8 +113,10 @@ func (service *Service) New(ctx context.Context, options NewOptions) (Result, er
 	}
 
 	result := Result{}
-	if service.clipboard.CanWriteText() {
-		if err := service.clipboard.WriteText(response.ShortURL); err != nil {
+	if options.WriteClipboard {
+		if !service.clipboard.CanWriteText() {
+			result.Stderr += "warning: clipboard write is unavailable\n"
+		} else if err := service.clipboard.WriteText(response.ShortURL); err != nil {
 			result.Stderr += fmt.Sprintf("warning: failed to copy to clipboard: %s\n", err)
 		} else {
 			result.Stderr += fmt.Sprintf("Copied to clipboard: %s\n", response.ShortURL)
@@ -193,6 +195,10 @@ func (service *Service) resolveContent(options NewOptions) (string, string, erro
 			return "", "", fmt.Errorf("content is empty")
 		}
 		return string(content), "[Pipe]", nil
+	}
+
+	if !options.ReadClipboard {
+		return "", "", fmt.Errorf("clipboard read is disabled; use -r/--read-clipboard, provide text, -f, or pipe stdin instead")
 	}
 
 	content, err := service.clipboard.ReadText()
