@@ -210,7 +210,9 @@ func (app *App) runCreate(
 	}
 	options.StdinTTY = stdinTTY
 	options.Confirm = func(_ string) (bool, error) {
-		fmt.Fprintf(app.stderr, "[Post on]: %s? (y/N) ", host)
+		fmt.Fprintf(app.stderr, "%-12s %s\n", "Post to", host)
+		fmt.Fprintf(app.stderr, "%-12s ", "Continue?")
+		fmt.Fprint(app.stderr, "[y/N] ")
 		reader := bufio.NewReader(app.stdin)
 		answer, readErr := reader.ReadString('\n')
 		if readErr != nil && readErr != io.EOF {

@@ -121,6 +121,39 @@ func TestNewWritesClipboardWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestNewWritesAlignedConfirmationPreview(t *testing.T) {
+	stderr := &bytes.Buffer{}
+	service := NewService(&stubClient{
+		postJSONFunc: func(_ context.Context, _ string, _ api.JSONRequest, _ bool) ([]byte, error) {
+			return []byte(`{"surl":"https://sho.rt/abc"}`), nil
+		},
+	}, &stubClipboard{readValue: "clipboard text"}, bytes.NewBuffer(nil), stderr)
+
+	ttl := 10080
+	result, err := service.New(context.Background(), NewOptions{
+		Method:        http.MethodPost,
+		TTL:           &ttl,
+		Convert:       "text",
+		StdinTTY:      true,
+		ReadClipboard: true,
+		Confirm: func(_ string) (bool, error) {
+			return false, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	if result.Stderr != "Aborted.\n" {
+		t.Fatalf("unexpected stderr result: %q", result.Stderr)
+	}
+
+	expected := "Source       Clipboard\nExpire after 10080 min\nType         text\n\n"
+	if stderr.String() != expected {
+		t.Fatalf("unexpected preview: %q", stderr.String())
+	}
+}
+
 func TestNewAcceptsStandardURLContent(t *testing.T) {
 	service := NewService(&stubClient{
 		postJSONFunc: func(_ context.Context, _ string, payload api.JSONRequest, _ bool) ([]byte, error) {

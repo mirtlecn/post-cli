@@ -7,6 +7,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/mirtle/post-cli/internal/api"
+	"github.com/mirtle/post-cli/internal/post"
 )
 
 func TestParseNewOptions(t *testing.T) {
@@ -122,6 +125,45 @@ func TestRunCompletionDoesNotRequireConfig(t *testing.T) {
 	}
 }
 
+func TestRunCreateUsesAlignedConfirmationPrompt(t *testing.T) {
+	inputReader, inputWriter, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("create input pipe: %v", err)
+	}
+	defer inputReader.Close()
+
+	if _, err := inputWriter.WriteString("n\n"); err != nil {
+		t.Fatalf("write confirmation input: %v", err)
+	}
+	if err := inputWriter.Close(); err != nil {
+		t.Fatalf("close input writer: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	app := NewApp(inputReader, &stdout, &stderr, BuildInfo{})
+	service := post.NewService(&stubCreateClient{
+		postJSONFunc: func(_ context.Context, _ string, _ api.JSONRequest, _ bool) ([]byte, error) {
+			return []byte(`{"surl":"https://sho.rt/abc"}`), nil
+		},
+	}, &stubCreateClipboard{}, bytes.NewBuffer(nil), &stderr)
+
+	err = app.runCreate(context.Background(), service, post.NewOptions{
+		Args: []string{"hello", "world"},
+	}, true, "https://t.mirtle.cn")
+	if err != nil {
+		t.Fatalf("runCreate returned error: %v", err)
+	}
+
+	expectedStderr := "Content      hello world\n\nPost to      https://t.mirtle.cn\nContinue?    [y/N] Aborted.\n"
+	if stderr.String() != expectedStderr {
+		t.Fatalf("unexpected stderr: %q", stderr.String())
+	}
+	if stdout.String() != "" {
+		t.Fatalf("unexpected stdout: %q", stdout.String())
+	}
+}
+
 func TestBashCompletionIncludesClipboardFlagsAndFilePathCompletion(t *testing.T) {
 	var stdout bytes.Buffer
 	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{}, BuildInfo{})
@@ -221,6 +263,40 @@ func TestHelpDoesNotRequireConfig(t *testing.T) {
 	if !strings.Contains(stdout.String(), "--read-clipboard") || !strings.Contains(stdout.String(), "post new -r") {
 		t.Fatalf("help output missing clipboard usage: %q", stdout.String())
 	}
+}
+
+type stubCreateClient struct {
+	postJSONFunc func(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error)
+}
+
+func (client *stubCreateClient) PostJSON(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
+	return client.postJSONFunc(ctx, method, payload, export)
+}
+
+func (client *stubCreateClient) Get(context.Context, string, bool) ([]byte, error) {
+	panic("unexpected Get call")
+}
+
+func (client *stubCreateClient) Delete(context.Context, string, bool) ([]byte, error) {
+	panic("unexpected Delete call")
+}
+
+func (client *stubCreateClient) UploadFile(context.Context, string, string, string, *int, bool) ([]byte, error) {
+	panic("unexpected UploadFile call")
+}
+
+type stubCreateClipboard struct{}
+
+func (clipboard *stubCreateClipboard) ReadText() (string, error) {
+	return "", nil
+}
+
+func (clipboard *stubCreateClipboard) CanWriteText() bool {
+	return false
+}
+
+func (clipboard *stubCreateClipboard) WriteText(string) error {
+	return nil
 }
 
 func TestParseShortcutOptionsUsesDefaultTTL(t *testing.T) {

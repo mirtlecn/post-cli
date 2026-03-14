@@ -249,25 +249,62 @@ func hasValidURIScheme(content string) bool {
 }
 
 func writeConfirmPreview(writer io.Writer, label string, options NewOptions, requestType string) {
-	fmt.Fprintln(writer, label)
+	writeConfirmLabel(writer, label)
 	if options.Slug != "" {
-		fmt.Fprintf(writer, "[Slug]: %s\n", options.Slug)
+		writeConfirmField(writer, "Slug", options.Slug)
 	}
 	if options.TTL != nil {
-		fmt.Fprintf(writer, "[Expire after]: %d min\n", *options.TTL)
+		writeConfirmField(writer, "Expire after", fmt.Sprintf("%d min", *options.TTL))
 	}
-	if options.Convert != "" {
-		fmt.Fprintf(writer, "[Convert]: %s\n", options.Convert)
-	}
-	if requestType != "" {
-		fmt.Fprintf(writer, "[Type]: %s\n", requestType)
+	if typeLabel := formatConfirmType(options.Convert, requestType); typeLabel != "" {
+		writeConfirmField(writer, "Type", typeLabel)
 	}
 	if options.Export {
-		fmt.Fprintln(writer, "[Export]: full response")
+		writeConfirmField(writer, "Export", "full response")
 	}
 	if options.Method == http.MethodPut {
-		fmt.Fprintln(writer, "[Mode]: overwrite")
+		writeConfirmField(writer, "Mode", "overwrite")
 	}
+	fmt.Fprintln(writer)
+}
+
+func writeConfirmField(writer io.Writer, key string, value string) {
+	fmt.Fprintf(writer, "%-12s %s\n", key, value)
+}
+
+func writeConfirmLabel(writer io.Writer, label string) {
+	switch {
+	case strings.HasPrefix(label, "[File upload]: "):
+		writeConfirmField(writer, "Source", "file")
+		writeConfirmField(writer, "Path", strings.TrimPrefix(label, "[File upload]: "))
+	case strings.HasPrefix(label, "[File]: "):
+		writeConfirmField(writer, "Path", strings.TrimPrefix(label, "[File]: "))
+	case label == "[Clipboard]":
+		writeConfirmField(writer, "Source", "Clipboard")
+	case label == "[Pipe]":
+		writeConfirmField(writer, "Source", "stdin")
+	case strings.HasPrefix(label, "[Text&Link]: "):
+		writeConfirmField(writer, "Content", strings.TrimPrefix(label, "[Text&Link]: "))
+	default:
+		writeConfirmField(writer, "Source", label)
+	}
+}
+
+func formatConfirmType(convert string, requestType string) string {
+	switch convert {
+	case "":
+		return requestType
+	case "md2html":
+		return "markdown -> html"
+	case "qrcode":
+		return "text -> qrcode"
+	case "file":
+		return "file"
+	}
+	if requestType != "" {
+		return requestType
+	}
+	return convert
 }
 
 func formatJSON(body []byte) (string, error) {
