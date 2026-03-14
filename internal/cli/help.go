@@ -11,7 +11,7 @@ Usage:
   post text [opts] [text...]   Upload text content (default ttl: 10080)
   post url [opts] [text...]    Upload URL content (default ttl: 10080)
   post new [opts] -f <file>    Upload file contents
-  post new [opts]              Upload clipboard contents (no -f, no text, no stdin)
+  post new -r [opts]           Upload clipboard contents (explicit read)
   echo "..." | post [new]      Upload from stdin
   post ls                      List all posts (truncated text)
   post ls <path>               Show a specific post
@@ -31,6 +31,8 @@ Options for 'new':
   -u, --update                   Overwrite if slug already exists (uses PUT)
   -y, --no-confirm               Skip confirmation prompt
   -x, --export                   Return full create/update response
+  -r, --read-clipboard           Read content from clipboard when no text/-f/stdin
+  -w, --write-clipboard          Copy created short URL to clipboard
   -c, --convert <mode>           Convert/type before uploading:
                                    html    -> set type to html
                                    md2html -> convert Markdown to HTML (type: html)
@@ -49,6 +51,8 @@ Options for shortcut commands:
   -y, --no-confirm               Skip confirmation prompt
   -x, --export                   Return full create/update response
   -f, --file <path>              Read content from file (not for post file)
+  -r, --read-clipboard           Enabled by default for md/qr/html/text/url (not for post file)
+  -w, --write-clipboard          Enabled by default for shortcut commands
 
 Environment variables:
   POST_HOST    Base endpoint URL (e.g. https://example.com)
@@ -84,7 +88,9 @@ Examples:
   post new -s mycode -f script.sh
   post new -t 60 "expires in 1 hour"
   post new -y "quick note"
-  post new                          # uploads clipboard
+  post new -r                       # uploads clipboard
+  post new -w "copy this short URL"
+  post new -rw "explicit read/write clipboard mode"
   echo "piped" | post
   echo "piped" | post new -s myslug
   post ls

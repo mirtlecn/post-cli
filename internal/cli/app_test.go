@@ -109,6 +109,24 @@ func TestRunCompletionDoesNotRequireConfig(t *testing.T) {
 	}
 }
 
+func TestBashCompletionIncludesClipboardFlagsAndFilePathCompletion(t *testing.T) {
+	var stdout bytes.Buffer
+	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{}, BuildInfo{})
+
+	err := app.Run(context.Background(), []string{"completion", "bash"})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "--read-clipboard") || !strings.Contains(output, "--write-clipboard") {
+		t.Fatalf("clipboard flags missing in bash completion: %q", output)
+	}
+	if !strings.Contains(output, "file)\n      if [[ \"${current}\" == -* ]]; then") || !strings.Contains(output, "COMPREPLY=($(compgen -f -- \"${current}\"))") {
+		t.Fatalf("file path completion missing in bash completion: %q", output)
+	}
+}
+
 func TestRunPowerShellCompletionDoesNotRequireConfig(t *testing.T) {
 	var stdout bytes.Buffer
 	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{}, BuildInfo{})
@@ -120,6 +138,24 @@ func TestRunPowerShellCompletionDoesNotRequireConfig(t *testing.T) {
 
 	if !strings.Contains(stdout.String(), "Register-ArgumentCompleter -Native -CommandName post") {
 		t.Fatalf("unexpected completion output: %q", stdout.String())
+	}
+}
+
+func TestPowerShellCompletionIncludesClipboardFlagsAndFilePathCompletion(t *testing.T) {
+	var stdout bytes.Buffer
+	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{}, BuildInfo{})
+
+	err := app.Run(context.Background(), []string{"completion", "powershell"})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "--read-clipboard") || !strings.Contains(output, "--write-clipboard") {
+		t.Fatalf("clipboard flags missing in powershell completion: %q", output)
+	}
+	if !strings.Contains(output, "$fileOptions = @(") || !strings.Contains(output, "'file' {\n            if ($wordToComplete -and $wordToComplete.StartsWith('-')) {") {
+		t.Fatalf("file path completion missing in powershell completion: %q", output)
 	}
 }
 
@@ -136,6 +172,12 @@ func TestCompletionPrioritizesFrequentCommands(t *testing.T) {
 	expected := "'new:Upload text, file, stdin, or clipboard content'\n    'text:Upload text content'\n    'url:Upload URL content'\n    'md:Upload Markdown as HTML'"
 	if !strings.Contains(output, expected) {
 		t.Fatalf("unexpected subcommand ordering: %q", output)
+	}
+	if !strings.Contains(output, "--read-clipboard") || !strings.Contains(output, "--write-clipboard") {
+		t.Fatalf("clipboard flags missing in zsh completion: %q", output)
+	}
+	if !strings.Contains(output, "1:file:_files") {
+		t.Fatalf("file path completion missing in zsh completion: %q", output)
 	}
 }
 
@@ -159,6 +201,9 @@ func TestHelpDoesNotRequireConfig(t *testing.T) {
 
 	if !strings.Contains(stdout.String(), "post completion powershell") {
 		t.Fatalf("unexpected help output: %q", stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "--read-clipboard") || !strings.Contains(stdout.String(), "post new -r") {
+		t.Fatalf("help output missing clipboard usage: %q", stdout.String())
 	}
 }
 
