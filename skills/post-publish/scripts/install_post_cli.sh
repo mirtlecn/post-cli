@@ -36,7 +36,7 @@ resolve_arch() {
 
 release_json_field() {
   _json_path="$1"
-  python3 - "$_json_path" <<'PY'
+  python3 -c '
 import json
 import sys
 
@@ -48,12 +48,12 @@ for part in path.split("."):
 if not isinstance(value, str):
     raise SystemExit(f"expected string at {path}")
 print(value)
-PY
+' "$_json_path"
 }
 
 select_asset_url() {
   _asset_name="$1"
-  python3 - "$_asset_name" <<'PY'
+  python3 -c '
 import json
 import sys
 
@@ -64,7 +64,7 @@ for asset in payload.get("assets", []):
         print(asset["browser_download_url"])
         raise SystemExit(0)
 raise SystemExit(f"asset not found: {asset_name}")
-PY
+' "$_asset_name"
 }
 
 remove_quarantine_if_needed() {
@@ -89,7 +89,12 @@ verify_binary() {
     esac
   }
 
-  printf '%s\n' "$_output" | awk 'NR==1 { print $2 }' >"$VERSION_FILE"
+  _reported_version=$(printf '%s\n' "$_output" | awk 'NR==1 { print $2 }')
+  case "$_reported_version" in
+    v*) ;;
+    *) _reported_version="v$_reported_version" ;;
+  esac
+  printf '%s\n' "$_reported_version" >"$VERSION_FILE"
 }
 
 download_release_json() {

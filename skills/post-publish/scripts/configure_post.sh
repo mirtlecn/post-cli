@@ -38,7 +38,7 @@ prompt_value() {
   _label="$1"
   _secret="$2"
 
-  if [ "$_secret" = "true" ] && command -v stty >/dev/null 2>&1; then
+  if [ "$_secret" = "true" ] && [ -t 0 ] && command -v stty >/dev/null 2>&1; then
     printf '%s: ' "$_label" >&2
     stty -echo
     IFS= read -r _value || true
