@@ -68,6 +68,11 @@ func parseShortcutOptions(command string, args []string) (post.NewOptions, error
 	}
 
 	if definition.RequireFilePath {
+		if options.ReadClipboard {
+			return options, fmt.Errorf("option --read-clipboard is not supported with shortcut command '%s'", command)
+		}
+		options.WriteClipboard = true
+
 		if len(options.Args) > 1 {
 			return options, fmt.Errorf("file command accepts a single file path")
 		}
@@ -87,6 +92,8 @@ func parseShortcutOptions(command string, args []string) (post.NewOptions, error
 	if !definition.AllowFileContent && options.FilePath != "" {
 		return options, fmt.Errorf("option --file is not supported with shortcut command '%s'", command)
 	}
+	options.ReadClipboard = true
+	options.WriteClipboard = true
 
 	return options, nil
 }
