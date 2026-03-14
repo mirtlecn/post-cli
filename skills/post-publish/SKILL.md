@@ -20,8 +20,8 @@ Do not compile from source unless the user explicitly asks for it. Prefer the la
 ## Rules
 
 - Return only the final link on success unless the user explicitly asks for the full response.
-- Do not assume `gh` is installed. Use the GitHub Releases API and direct asset URLs.
 - Use the skill-local binary at `./bin/post`.
+- Download the release binary only once. If `./bin/post` already exists, reuse it
 - Prefer `~/.config/post/config.json` for persisted configuration.
 - If `POST_HOST` and `POST_TOKEN` are both present in the environment, use them without overwriting the config file.
 - If configuration is missing, collect `host` and `token`, then write them to `~/.config/post/config.json`.

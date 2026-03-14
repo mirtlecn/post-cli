@@ -6,7 +6,7 @@ SKILL_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 BIN_DIR="$SKILL_DIR/bin"
 POST_BIN="$BIN_DIR/post"
 VERSION_FILE="$BIN_DIR/post.version"
-LATEST_RELEASE_URL="https://api.github.com/repos/mirtlecn/post-cli/releases/latest"
+RELEASE_VERSION="0.1.3"
 
 die() {
   printf 'error: %s\n' "$*" >&2
@@ -32,39 +32,6 @@ resolve_arch() {
     arm64|aarch64) printf 'arm64' ;;
     *) die "unsupported architecture: $(uname -m)" ;;
   esac
-}
-
-release_json_field() {
-  _json_path="$1"
-  python3 -c '
-import json
-import sys
-
-payload = json.load(sys.stdin)
-path = sys.argv[1]
-value = payload
-for part in path.split("."):
-    value = value[part]
-if not isinstance(value, str):
-    raise SystemExit(f"expected string at {path}")
-print(value)
-' "$_json_path"
-}
-
-select_asset_url() {
-  _asset_name="$1"
-  python3 -c '
-import json
-import sys
-
-asset_name = sys.argv[1]
-payload = json.load(sys.stdin)
-for asset in payload.get("assets", []):
-    if asset.get("name") == asset_name:
-        print(asset["browser_download_url"])
-        raise SystemExit(0)
-raise SystemExit(f"asset not found: {asset_name}")
-' "$_asset_name"
 }
 
 remove_quarantine_if_needed() {
@@ -97,10 +64,6 @@ verify_binary() {
   printf '%s\n' "$_reported_version" >"$VERSION_FILE"
 }
 
-download_release_json() {
-  curl -fsSL "$LATEST_RELEASE_URL"
-}
-
 download_archive() {
   _url="$1"
   _destination="$2"
@@ -126,12 +89,10 @@ extract_archive() {
   esac
 }
 
-install_binary() {
-  _release_json="$1"
+build_asset_url() {
   _os=$(resolve_os)
   _arch=$(resolve_arch)
-  _tag_name=$(printf '%s' "$_release_json" | release_json_field tag_name)
-  _version=${_tag_name#v}
+  _tag_name="v$RELEASE_VERSION"
 
   if [ -x "$POST_BIN" ] && [ -f "$VERSION_FILE" ] && [ "$(cat "$VERSION_FILE")" = "$_tag_name" ]; then
     verify_binary
@@ -139,14 +100,20 @@ install_binary() {
   fi
 
   case "$_os" in
-    windows) _asset_name="post_${_version}_${_os}_${_arch}.zip" ;;
-    *) _asset_name="post_${_version}_${_os}_${_arch}.tar.gz" ;;
+    windows) _asset_name="post_${RELEASE_VERSION}_${_os}_${_arch}.zip" ;;
+    *) _asset_name="post_${RELEASE_VERSION}_${_os}_${_arch}.tar.gz" ;;
   esac
 
-  _asset_url=$(printf '%s' "$_release_json" | select_asset_url "$_asset_name") || die "failed to find release asset $_asset_name"
+  printf 'https://github.com/mirtlecn/post-cli/releases/download/%s/%s\n' "$_tag_name" "$_asset_name"
+}
+
+install_binary() {
+  _asset_url=$(build_asset_url)
+  _os=$(resolve_os)
   mkdir -p "$BIN_DIR"
   _temp_dir=$(mktemp -d)
-  _archive_path="$_temp_dir/$_asset_name"
+  _archive_name=$(basename "$_asset_url")
+  _archive_path="$_temp_dir/$_archive_name"
   _extract_dir="$_temp_dir/extract"
   trap 'rm -rf "$_temp_dir"' EXIT INT TERM
 
@@ -164,11 +131,16 @@ install_binary() {
 }
 
 main() {
-  require_command curl
-  require_command python3
+  if [ -x "$POST_BIN" ]; then
+    if [ ! -f "$VERSION_FILE" ]; then
+      verify_binary
+    fi
+    exit 0
+  fi
 
-  _release_json=$(download_release_json) || die "failed to fetch latest release metadata from $LATEST_RELEASE_URL"
-  install_binary "$_release_json"
+  require_command curl
+
+  install_binary
 }
 
 main "$@"

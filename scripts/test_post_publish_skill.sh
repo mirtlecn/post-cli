@@ -50,13 +50,23 @@ test_configure_writes_missing_config() {
   assert_file_contains "$_config_path" '"token": "config-token"'
 }
 
-test_install_downloads_release_and_reuses_cached_binary() {
+test_install_reuses_existing_binary_without_network() {
   _skill_copy=$(make_temp_skill_copy)
-  "$_skill_copy/scripts/install_post_cli.sh" >/tmp/post-publish-install-1.out 2>/tmp/post-publish-install-1.err
+  mkdir -p "$_skill_copy/bin"
+  cat >"$_skill_copy/bin/post" <<'SH'
+#!/bin/sh
+set -eu
+printf '%s\n' 'post 0.1.3'
+printf '%s\n' 'commit: cached'
+printf '%s\n' 'built: cached'
+SH
+  chmod +x "$_skill_copy/bin/post"
+
+  PATH="/usr/bin:/bin" "$_skill_copy/scripts/install_post_cli.sh" >/tmp/post-publish-install-1.out 2>/tmp/post-publish-install-1.err
   _version_output=$("$_skill_copy/bin/post" version)
   printf '%s' "$_version_output" | grep -Eq '^post [0-9]+\.[0-9]+\.[0-9]+' >/dev/null 2>&1 || die "installed binary did not report a release version"
 
-  "$_skill_copy/scripts/install_post_cli.sh" >/tmp/post-publish-install-2.out 2>/tmp/post-publish-install-2.err
+  PATH="/usr/bin:/bin" "$_skill_copy/scripts/install_post_cli.sh" >/tmp/post-publish-install-2.out 2>/tmp/post-publish-install-2.err
   _cached_version=$(cat "$_skill_copy/bin/post.version")
   printf '%s' "$_cached_version" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' || die "post.version was not recorded correctly"
 }
@@ -133,7 +143,7 @@ test_share_rejects_file_convert_without_file() {
 main() {
   test_configure_uses_environment_without_writing
   test_configure_writes_missing_config
-  test_install_downloads_release_and_reuses_cached_binary
+  test_install_reuses_existing_binary_without_network
   test_share_returns_first_link_line
   test_share_retries_on_slug_conflict
   test_share_rejects_file_convert_without_file
