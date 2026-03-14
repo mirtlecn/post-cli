@@ -37,9 +37,30 @@ jobs:
           version: "~> v2"
           args: release --snapshot --clean
 
-      - name: Upload nightly artifacts
+      - name: Upload nightly macOS artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: post-nightly-${{ github.run_number }}
-          path: dist/*
+          name: post-nightly-darwin-${{ github.run_number }}
+          path: dist/post_*_darwin_*.tar.gz
+          if-no-files-found: error
+
+      - name: Upload nightly Linux artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: post-nightly-linux-${{ github.run_number }}
+          path: dist/post_*_linux_*.tar.gz
+          if-no-files-found: error
+
+      - name: Upload nightly Windows artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: post-nightly-windows-${{ github.run_number }}
+          path: dist/post_*_windows_*.zip
+          if-no-files-found: error
+
+      - name: Upload nightly checksums
+        uses: actions/upload-artifact@v6
+        with:
+          name: post-nightly-checksums-${{ github.run_number }}
+          path: dist/checksums.txt
           if-no-files-found: error
