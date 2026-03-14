@@ -25,14 +25,14 @@ func parseNewOptions(args []string) (post.NewOptions, error) {
 		arg := expandedArgs[index]
 		switch arg {
 		case "-s", "--slug":
-			value, nextIndex, err := nextValue(args, index)
+			value, nextIndex, err := nextValue(expandedArgs, index)
 			if err != nil {
 				return options, fmt.Errorf("option %s requires a value", arg)
 			}
 			options.Slug = value
 			index = nextIndex
 		case "-t", "--ttl":
-			value, nextIndex, err := nextValue(args, index)
+			value, nextIndex, err := nextValue(expandedArgs, index)
 			if err != nil {
 				return options, fmt.Errorf("option %s requires a number (minutes)", arg)
 			}
@@ -58,14 +58,14 @@ func parseNewOptions(args []string) (post.NewOptions, error) {
 			options.Export = true
 			index++
 		case "-f", "--file":
-			value, nextIndex, err := nextValue(args, index)
+			value, nextIndex, err := nextValue(expandedArgs, index)
 			if err != nil {
 				return options, fmt.Errorf("option %s requires a file path", arg)
 			}
 			options.FilePath = value
 			index = nextIndex
 		case "-c", "--convert":
-			value, nextIndex, err := nextValue(args, index)
+			value, nextIndex, err := nextValue(expandedArgs, index)
 			if err != nil {
 				return options, fmt.Errorf("option %s requires a value: html|md2html|url|text|qrcode|file", arg)
 			}

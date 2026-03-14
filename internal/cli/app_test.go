@@ -60,6 +60,19 @@ func TestParseNewOptionsSupportsCombinedBooleanFlags(t *testing.T) {
 	}
 }
 
+func TestParseNewOptionsSupportsCombinedFlagsWithSlug(t *testing.T) {
+	options, err := parseNewOptions([]string{"-uyx", "-s", "demo", "hello"})
+	if err != nil {
+		t.Fatalf("parseNewOptions returned error: %v", err)
+	}
+	if options.Slug != "demo" {
+		t.Fatalf("unexpected slug: %s", options.Slug)
+	}
+	if len(options.Args) != 1 || options.Args[0] != "hello" {
+		t.Fatalf("unexpected args: %#v", options.Args)
+	}
+}
+
 func TestParseNewOptionsSupportsCombinedClipboardFlags(t *testing.T) {
 	options, err := parseNewOptions([]string{"-rw", "hello"})
 	if err != nil {

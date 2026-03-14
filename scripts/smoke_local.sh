@@ -54,6 +54,9 @@ run_success "completion-zsh" ./post completion zsh
 run_success "completion-powershell" ./post completion powershell
 run_success "ls-all" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls
 run_success "new-text" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -s "$PREFIX-text" "hello text"
+run_success "new-write-clipboard" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -w -s "$PREFIX-write-clipboard" "clipboard write text"
+run_success "new-combined-uyx" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -uyx -s "$PREFIX-combined-uyx" "combined flags text"
+run_success "new-combined-rw" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -yrw -s "$PREFIX-combined-rw" "combined clipboard flags text"
 run_success "new-file-content" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -s "$PREFIX-file-content" -f "$SAMPLE_FILE"
 run_success "new-file-upload" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -s "$PREFIX-file-upload" -c file -f "$SAMPLE_FILE"
 run_success "new-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -x -s "$PREFIX-export" "export text"
@@ -83,12 +86,15 @@ run_success "config-file" env POST_HOST= POST_TOKEN= POST_CONFIG="$CONFIG_FILE" 
 run_success "rm-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post rm -x "$PREFIX-file-content"
 run_success "rm" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post rm "$PREFIX-export"
 
-run_failure "missing-config" env POST_HOST= POST_TOKEN= ./post ls
+run_failure "missing-config" env POST_HOST= POST_TOKEN= POST_CONFIG="$TMP_DIR/not-found-config.json" ./post ls
 run_failure "invalid-convert" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -c bad value
+run_failure "combined-value-flag" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -uyt 60 text
+run_failure "clipboard-read-disabled" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y
 run_failure "missing-file-flag" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -c file
 run_failure "missing-file" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -f "$TMP_DIR/not-found.txt"
 run_failure "missing-rm-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post rm
 run_failure "shortcut-file-missing-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y
+run_failure "shortcut-file-read-clipboard" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y -r -f "$SAMPLE_FILE"
 run_failure "shortcut-file-conflicting-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y -f "$SAMPLE_FILE" "$SAMPLE_FILE"
 run_failure "unknown-command" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post oops
 run_failure "unknown-option" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -z text
