@@ -1,8 +1,10 @@
 name: nightly
 
 on:
-  schedule:
-    - cron: "0 17 * * *"
+  push:
+    branches:
+      - main
+      - master
   workflow_dispatch:
 
 permissions:
@@ -30,7 +32,7 @@ jobs:
           args: release --snapshot --clean
 
       - name: Upload nightly artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: post-nightly-${{ github.run_number }}
           path: dist/*
