@@ -43,6 +43,12 @@ func parseNewOptions(args []string) (post.NewOptions, error) {
 		case "-y", "--no-confirm":
 			options.SkipConfirm = true
 			index++
+		case "-r", "--read-clipboard":
+			options.ReadClipboard = true
+			index++
+		case "-w", "--write-clipboard":
+			options.WriteClipboard = true
+			index++
 		case "-x", "--export":
 			options.Export = true
 			index++
