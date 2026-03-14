@@ -62,7 +62,7 @@ func parseShortcutOptions(command string, args []string) (post.NewOptions, error
 	}
 
 	options.Type = definition.Type
-	if options.TTL == nil {
+	if options.TTL == nil && options.Topic == "" {
 		defaultTTL := definition.DefaultTTLMinutes
 		options.TTL = &defaultTTL
 	}

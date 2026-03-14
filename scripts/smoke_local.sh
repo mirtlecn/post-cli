@@ -85,6 +85,7 @@ run_success "shortcut-md-file" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKE
 run_success "shortcut-qr" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post qr -y -s "$PREFIX-shortcut-qr" "https://example.com/qr-shortcut"
 run_success "shortcut-html" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post html -y -s "$PREFIX-shortcut-html" "<p>hi</p>"
 run_success "shortcut-text" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post text -y -s "$PREFIX-shortcut-text" "shortcut text"
+run_success "shortcut-topic-no-ttl" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post text -y -x -p "$TOPIC_NAME" -i "Shortcut Topic Note" -s "$TOPIC_NAME/shortcut-topic" "shortcut topic text"
 run_success "shortcut-url" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post url -y -s "$PREFIX-shortcut-url" "https://example.com/shortcut"
 run_success "shortcut-file-positional" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y -s "$PREFIX-shortcut-file" "$SAMPLE_FILE"
 run_success "shortcut-file-flag" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y -s "$PREFIX-shortcut-file-flag" -f "$SAMPLE_FILE"

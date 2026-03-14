@@ -410,6 +410,17 @@ func TestParseShortcutOptionsAllowsTTLOverride(t *testing.T) {
 	}
 }
 
+func TestParseShortcutOptionsSkipsDefaultTTLWhenTopicIsSet(t *testing.T) {
+	options, err := parseShortcutOptions("text", []string{"-p", "anime", "-i", "Quick Note", "hello"})
+	if err != nil {
+		t.Fatalf("parseShortcutOptions returned error: %v", err)
+	}
+
+	if options.TTL != nil {
+		t.Fatalf("expected ttl to stay nil for topic shortcut, got: %v", options.TTL)
+	}
+}
+
 func TestParseShortcutOptionsUsesPositionalFilePath(t *testing.T) {
 	options, err := parseShortcutOptions("file", []string{"./demo.txt"})
 	if err != nil {
