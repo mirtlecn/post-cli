@@ -77,7 +77,7 @@ func (service *Service) New(ctx context.Context, options NewOptions) (Result, er
 	}
 
 	if !options.SkipConfirm && options.StdinTTY && options.Confirm != nil {
-		writeConfirmPreview(service.stderr, label, options, requestType)
+		writeConfirmPreview(service.stderr, label, content, options, requestType)
 		accepted, confirmErr := options.Confirm(label)
 		if confirmErr != nil {
 			return Result{}, confirmErr
@@ -248,22 +248,22 @@ func hasValidURIScheme(content string) bool {
 	return uriSchemePattern.MatchString(content[:schemeSeparatorIndex])
 }
 
-func writeConfirmPreview(writer io.Writer, label string, options NewOptions, requestType string) {
-	writeConfirmLabel(writer, label)
+func writeConfirmPreview(writer io.Writer, label string, content string, options NewOptions, requestType string) {
+	writeConfirmField(writer, "content", truncateConfirmValue(resolveConfirmContent(label, content)))
 	if options.Slug != "" {
-		writeConfirmField(writer, "Slug", options.Slug)
+		writeConfirmField(writer, "slug", options.Slug)
 	}
 	if options.TTL != nil {
-		writeConfirmField(writer, "Expire after", fmt.Sprintf("%d min", *options.TTL))
+		writeConfirmField(writer, "ttl", fmt.Sprintf("%d min", *options.TTL))
 	}
 	if typeLabel := formatConfirmType(options.Convert, requestType); typeLabel != "" {
-		writeConfirmField(writer, "Type", typeLabel)
+		writeConfirmField(writer, "type", typeLabel)
 	}
 	if options.Export {
-		writeConfirmField(writer, "Export", "full response")
+		writeConfirmField(writer, "export", "full response")
 	}
 	if options.Method == http.MethodPut {
-		writeConfirmField(writer, "Mode", "overwrite")
+		writeConfirmField(writer, "mode", "overwrite")
 	}
 	fmt.Fprintln(writer)
 }
@@ -272,22 +272,28 @@ func writeConfirmField(writer io.Writer, key string, value string) {
 	fmt.Fprintf(writer, "%-12s %s\n", key, value)
 }
 
-func writeConfirmLabel(writer io.Writer, label string) {
+func resolveConfirmContent(label string, content string) string {
 	switch {
 	case strings.HasPrefix(label, "[File upload]: "):
-		writeConfirmField(writer, "Source", "file")
-		writeConfirmField(writer, "Path", strings.TrimPrefix(label, "[File upload]: "))
+		return strings.TrimPrefix(label, "[File upload]: ")
 	case strings.HasPrefix(label, "[File]: "):
-		writeConfirmField(writer, "Path", strings.TrimPrefix(label, "[File]: "))
-	case label == "[Clipboard]":
-		writeConfirmField(writer, "Source", "Clipboard")
-	case label == "[Pipe]":
-		writeConfirmField(writer, "Source", "stdin")
-	case strings.HasPrefix(label, "[Text&Link]: "):
-		writeConfirmField(writer, "Content", strings.TrimPrefix(label, "[Text&Link]: "))
+		return strings.TrimPrefix(label, "[File]: ")
+	case label == "[Clipboard]", label == "[Pipe]", strings.HasPrefix(label, "[Text&Link]: "):
+		return content
 	default:
-		writeConfirmField(writer, "Source", label)
+		return label
 	}
+}
+
+func truncateConfirmValue(value string) string {
+	const maxConfirmValueLength = 80
+
+	runes := []rune(value)
+	if len(runes) <= maxConfirmValueLength {
+		return value
+	}
+
+	return string(runes[:maxConfirmValueLength-3]) + "..."
 }
 
 func formatConfirmType(convert string, requestType string) string {

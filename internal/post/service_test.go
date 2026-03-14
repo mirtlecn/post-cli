@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mirtle/post-cli/internal/api"
@@ -148,7 +149,39 @@ func TestNewWritesAlignedConfirmationPreview(t *testing.T) {
 		t.Fatalf("unexpected stderr result: %q", result.Stderr)
 	}
 
-	expected := "Source       Clipboard\nExpire after 10080 min\nType         text\n\n"
+	expected := "content      clipboard text\nttl          10080 min\ntype         text\n\n"
+	if stderr.String() != expected {
+		t.Fatalf("unexpected preview: %q", stderr.String())
+	}
+}
+
+func TestNewTruncatesLongConfirmationContent(t *testing.T) {
+	stderr := &bytes.Buffer{}
+	longText := strings.Repeat("a", 100)
+	service := NewService(&stubClient{
+		postJSONFunc: func(_ context.Context, _ string, _ api.JSONRequest, _ bool) ([]byte, error) {
+			return []byte(`{"surl":"https://sho.rt/abc"}`), nil
+		},
+	}, &stubClipboard{}, bytes.NewBuffer(nil), stderr)
+
+	result, err := service.New(context.Background(), NewOptions{
+		Method:   http.MethodPost,
+		Args:     []string{longText},
+		Convert:  "text",
+		StdinTTY: true,
+		Confirm: func(_ string) (bool, error) {
+			return false, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	if result.Stderr != "Aborted.\n" {
+		t.Fatalf("unexpected stderr result: %q", result.Stderr)
+	}
+
+	expected := "content      " + strings.Repeat("a", 77) + "...\ntype         text\n\n"
 	if stderr.String() != expected {
 		t.Fatalf("unexpected preview: %q", stderr.String())
 	}

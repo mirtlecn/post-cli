@@ -155,7 +155,7 @@ func TestRunCreateUsesAlignedConfirmationPrompt(t *testing.T) {
 		t.Fatalf("runCreate returned error: %v", err)
 	}
 
-	expectedStderr := "Content      hello world\n\nPost to      https://t.mirtle.cn\nContinue?    [y/N] Aborted.\n"
+	expectedStderr := "content      hello world\n\npost to      https://t.mirtle.cn\ncontinue?    [y/N] Aborted.\n"
 	if stderr.String() != expectedStderr {
 		t.Fatalf("unexpected stderr: %q", stderr.String())
 	}
