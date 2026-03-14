@@ -12,12 +12,17 @@ import (
 )
 
 func parseNewOptions(args []string) (post.NewOptions, error) {
+	expandedArgs, err := expandCombinedBooleanFlags(args)
+	if err != nil {
+		return post.NewOptions{}, err
+	}
+
 	options := post.NewOptions{
 		Method: http.MethodPost,
 	}
 
-	for index := 0; index < len(args); {
-		arg := args[index]
+	for index := 0; index < len(expandedArgs); {
+		arg := expandedArgs[index]
 		switch arg {
 		case "-s", "--slug":
 			value, nextIndex, err := nextValue(args, index)
@@ -70,18 +75,58 @@ func parseNewOptions(args []string) (post.NewOptions, error) {
 			options.Convert = value
 			index = nextIndex
 		case "--":
-			options.Args = append(options.Args, args[index+1:]...)
+			options.Args = append(options.Args, expandedArgs[index+1:]...)
 			return options, nil
 		default:
 			if strings.HasPrefix(arg, "-") {
 				return options, fmt.Errorf("unknown option '%s'. Try: post help", arg)
 			}
-			options.Args = append(options.Args, args[index:]...)
+			options.Args = append(options.Args, expandedArgs[index:]...)
 			return options, nil
 		}
 	}
 
 	return options, nil
+}
+
+func expandCombinedBooleanFlags(args []string) ([]string, error) {
+	expanded := make([]string, 0, len(args))
+	for _, arg := range args {
+		if len(arg) <= 2 || !strings.HasPrefix(arg, "-") || strings.HasPrefix(arg, "--") {
+			expanded = append(expanded, arg)
+			continue
+		}
+
+		for _, shortFlag := range arg[1:] {
+			if isBooleanShortFlag(shortFlag) {
+				expanded = append(expanded, "-"+string(shortFlag))
+				continue
+			}
+			if isValueShortFlag(shortFlag) {
+				return nil, fmt.Errorf("option '-%c' requires a value and cannot be combined", shortFlag)
+			}
+			return nil, fmt.Errorf("unknown option '-%c'. Try: post help", shortFlag)
+		}
+	}
+	return expanded, nil
+}
+
+func isBooleanShortFlag(shortFlag rune) bool {
+	switch shortFlag {
+	case 'u', 'y', 'x', 'r', 'w':
+		return true
+	default:
+		return false
+	}
+}
+
+func isValueShortFlag(shortFlag rune) bool {
+	switch shortFlag {
+	case 'f', 's', 't', 'c':
+		return true
+	default:
+		return false
+	}
 }
 
 func parsePathExportOptions(args []string, command string) (string, bool, error) {

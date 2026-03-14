@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -40,6 +41,39 @@ func TestParseNewOptionsRejectsInvalidConvert(t *testing.T) {
 	_, err := parseNewOptions([]string{"-c", "bad"})
 	if err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestParseNewOptionsSupportsCombinedBooleanFlags(t *testing.T) {
+	options, err := parseNewOptions([]string{"-uyx", "hello"})
+	if err != nil {
+		t.Fatalf("parseNewOptions returned error: %v", err)
+	}
+	if options.Method != http.MethodPut {
+		t.Fatalf("unexpected method: %s", options.Method)
+	}
+	if !options.SkipConfirm {
+		t.Fatal("expected no-confirm flag")
+	}
+	if !options.Export {
+		t.Fatal("expected export flag")
+	}
+}
+
+func TestParseNewOptionsSupportsCombinedClipboardFlags(t *testing.T) {
+	options, err := parseNewOptions([]string{"-rw", "hello"})
+	if err != nil {
+		t.Fatalf("parseNewOptions returned error: %v", err)
+	}
+	if !options.ReadClipboard || !options.WriteClipboard {
+		t.Fatalf("unexpected clipboard flags: read=%v write=%v", options.ReadClipboard, options.WriteClipboard)
+	}
+}
+
+func TestParseNewOptionsRejectsCombinedValueFlags(t *testing.T) {
+	_, err := parseNewOptions([]string{"-uyt", "60", "hello"})
+	if err == nil || err.Error() != "option '-t' requires a value and cannot be combined" {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
