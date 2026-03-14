@@ -214,6 +214,9 @@ func TestBashCompletionIncludesClipboardFlagsAndFilePathCompletion(t *testing.T)
 	if !strings.Contains(output, "--type") || !strings.Contains(output, "topic version completion help") {
 		t.Fatalf("type/topic completion missing in bash completion: %q", output)
 	}
+	if !strings.Contains(output, "COMPREPLY=($(compgen -W \"new ls rm\" -- \"${current}\"))") {
+		t.Fatalf("topic subcommand completion missing in bash completion: %q", output)
+	}
 	if !strings.Contains(output, "file)\n      if [[ \"${current}\" == -* ]]; then") || !strings.Contains(output, "COMPREPLY=($(compgen -f -- \"${current}\"))") {
 		t.Fatalf("file path completion missing in bash completion: %q", output)
 	}
@@ -273,6 +276,9 @@ func TestCompletionPrioritizesFrequentCommands(t *testing.T) {
 	}
 	if !strings.Contains(output, "'topic:Manage topics'") || !strings.Contains(output, "--type") {
 		t.Fatalf("type/topic completion missing in zsh completion: %q", output)
+	}
+	if !strings.Contains(output, "topic)\n      shift words\n      (( CURRENT -= 1 ))") || !strings.Contains(output, "'1:subcommand:(new ls rm)'") {
+		t.Fatalf("topic subcommand completion missing in zsh completion: %q", output)
 	}
 	if !strings.Contains(output, "shift words\n      (( CURRENT -= 1 ))\n      _arguments -s \\\n        '(-s --slug)'") {
 		t.Fatalf("zsh subcommand argument shifting missing for file command: %q", output)

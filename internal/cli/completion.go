@@ -203,7 +203,9 @@ _post() {
       _arguments -s '(-x --export)'{-x,--export}'[Return full content]' '1:path: '
       ;;
     topic)
-      case $words[3] in
+      shift words
+      (( CURRENT -= 1 ))
+      case $words[2] in
         new)
           _arguments '1:topic: '
           ;;
