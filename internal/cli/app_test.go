@@ -217,7 +217,7 @@ func TestBashCompletionIncludesClipboardFlagsAndFilePathCompletion(t *testing.T)
 	if !strings.Contains(output, "_post_topic_names()") || !strings.Contains(output, "-p|--topic)") {
 		t.Fatalf("dynamic topic completion missing in bash completion: %q", output)
 	}
-	if !strings.Contains(output, "COMPREPLY=($(compgen -W \"new ls rm\" -- \"${current}\"))") {
+	if !strings.Contains(output, "COMPREPLY=($(compgen -W \"new ls refresh rm\" -- \"${current}\"))") {
 		t.Fatalf("topic subcommand completion missing in bash completion: %q", output)
 	}
 	if !strings.Contains(output, "file)\n      if [[ \"${current}\" == -* ]]; then") || !strings.Contains(output, "COMPREPLY=($(compgen -f -- \"${current}\"))") {
@@ -252,7 +252,7 @@ func TestPowerShellCompletionIncludesClipboardFlagsAndFilePathCompletion(t *test
 	if !strings.Contains(output, "--read-clipboard") || !strings.Contains(output, "--write-clipboard") {
 		t.Fatalf("clipboard flags missing in powershell completion: %q", output)
 	}
-	if !strings.Contains(output, "--type") || !strings.Contains(output, "$topicSubcommands = @('new', 'ls', 'rm')") {
+	if !strings.Contains(output, "--type") || !strings.Contains(output, "$topicSubcommands = @('new', 'ls', 'refresh', 'rm')") {
 		t.Fatalf("type/topic completion missing in powershell completion: %q", output)
 	}
 	if !strings.Contains(output, "function Get-PostTopicNames") || !strings.Contains(output, "$previous -in @('-p', '--topic')") {
@@ -289,7 +289,7 @@ func TestCompletionPrioritizesFrequentCommands(t *testing.T) {
 	if !strings.Contains(output, "'*:topic:_post_topic_names'") {
 		t.Fatalf("topic rm dynamic completion missing in zsh completion: %q", output)
 	}
-	if !strings.Contains(output, "topic)\n      shift words\n      (( CURRENT -= 1 ))") || !strings.Contains(output, "'1:subcommand:(new ls rm)'") {
+	if !strings.Contains(output, "topic)\n      shift words\n      (( CURRENT -= 1 ))") || !strings.Contains(output, "'1:subcommand:(new ls refresh rm)'") {
 		t.Fatalf("topic subcommand completion missing in zsh completion: %q", output)
 	}
 	if !strings.Contains(output, "shift words\n      (( CURRENT -= 1 ))\n      _arguments -s \\\n        '(-s --slug)'") {
@@ -324,7 +324,7 @@ func TestHelpDoesNotRequireConfig(t *testing.T) {
 	if !strings.Contains(stdout.String(), "--read-clipboard") || !strings.Contains(stdout.String(), "post new -r") {
 		t.Fatalf("help output missing clipboard usage: %q", stdout.String())
 	}
-	if !strings.Contains(stdout.String(), "post topic new <topic>") || !strings.Contains(stdout.String(), "--type <mode>") {
+	if !strings.Contains(stdout.String(), "post topic new <topic>") || !strings.Contains(stdout.String(), "post topic refresh <topic>") || !strings.Contains(stdout.String(), "--type <mode>") {
 		t.Fatalf("help output missing topic/type usage: %q", stdout.String())
 	}
 }
@@ -396,6 +396,27 @@ func TestRunTopicRejectsUnknownCommand(t *testing.T) {
 	}, &stubCreateClipboard{}, bytes.NewBuffer(nil), &bytes.Buffer{}), []string{"oops"})
 	if err == nil || err.Error() != "unknown topic command 'oops'. Try: post help" {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRunTopicRefreshUsesTopicType(t *testing.T) {
+	var stdout bytes.Buffer
+	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{}, BuildInfo{})
+	service := post.NewService(&stubCreateClient{
+		postJSONFunc: func(_ context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
+			if method != http.MethodPut || payload.Path != "anime" || payload.Type != "topic" || !export {
+				t.Fatalf("unexpected args: %s %#v %v", method, payload, export)
+			}
+			return []byte(`{"path":"anime","type":"topic","title":"anime","content":"1"}`), nil
+		},
+	}, &stubCreateClipboard{}, bytes.NewBuffer(nil), &bytes.Buffer{})
+
+	err := app.runTopic(context.Background(), service, []string{"refresh", "-x", "anime"})
+	if err != nil {
+		t.Fatalf("runTopic returned error: %v", err)
+	}
+	if !strings.Contains(stdout.String(), `"type": "topic"`) {
+		t.Fatalf("unexpected stdout: %q", stdout.String())
 	}
 }
 

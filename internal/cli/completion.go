@@ -53,7 +53,7 @@ _post_completion() {
       return 0
       ;;
     topic)
-      COMPREPLY=($(compgen -W "new ls rm" -- "${current}"))
+      COMPREPLY=($(compgen -W "new ls refresh rm" -- "${current}"))
       return 0
       ;;
     completion)
@@ -92,7 +92,7 @@ _post_completion() {
         new)
           COMPREPLY=()
           ;;
-        ls|rm)
+        ls|refresh|rm)
           if [[ "${current}" == -* ]]; then
             COMPREPLY=($(compgen -W "-x --export" -- "${current}"))
           else
@@ -100,7 +100,7 @@ _post_completion() {
           fi
           ;;
         *)
-          COMPREPLY=($(compgen -W "new ls rm" -- "${current}"))
+          COMPREPLY=($(compgen -W "new ls refresh rm" -- "${current}"))
           ;;
       esac
       ;;
@@ -230,11 +230,14 @@ _post() {
         ls)
           _arguments -s '(-x --export)'{-x,--export}'[Return full content]' '*:topic:_post_topic_names'
           ;;
+        refresh)
+          _arguments -s '(-x --export)'{-x,--export}'[Return full content]' '*:topic:_post_topic_names'
+          ;;
         rm)
           _arguments -s '(-x --export)'{-x,--export}'[Return full content]' '*:topic:_post_topic_names'
           ;;
         *)
-          _arguments '1:subcommand:(new ls rm)' '*::arg: '
+          _arguments '1:subcommand:(new ls refresh rm)' '*::arg: '
           ;;
       esac
       ;;
@@ -282,7 +285,7 @@ const powerShellCompletion = `Register-ArgumentCompleter -Native -CommandName po
     $shortcutOptions = @('-f', '--file', '-s', '--slug', '-i', '--title', '-p', '--topic', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-r', '--read-clipboard', '-w', '--write-clipboard')
     $fileOptions = @('-f', '--file', '-s', '--slug', '-i', '--title', '-p', '--topic', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-w', '--write-clipboard')
     $lsOptions = @('-x', '--export')
-    $topicSubcommands = @('new', 'ls', 'rm')
+    $topicSubcommands = @('new', 'ls', 'refresh', 'rm')
     $shells = @('bash', 'zsh', 'powershell')
     $convertValues = @('html', 'md2html', 'url', 'text', 'qrcode', 'file', 'topic')
 
@@ -333,7 +336,7 @@ const powerShellCompletion = `Register-ArgumentCompleter -Native -CommandName po
         }
 
         $topicCommand = $tokens[2]
-        if ($topicCommand -in @('ls', 'rm') -and -not ($wordToComplete -and $wordToComplete.StartsWith('-'))) {
+        if ($topicCommand -in @('ls', 'refresh', 'rm') -and -not ($wordToComplete -and $wordToComplete.StartsWith('-'))) {
             Get-PostTopicNames | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
                 [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
             }
@@ -342,6 +345,7 @@ const powerShellCompletion = `Register-ArgumentCompleter -Native -CommandName po
 
         $candidates = switch ($topicCommand) {
             'ls' { $lsOptions }
+            'refresh' { $lsOptions }
             'rm' { $lsOptions }
             default { @() }
         }

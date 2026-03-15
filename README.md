@@ -60,6 +60,7 @@ Core commands:
 - `post help`
 - `post topic new`
 - `post topic ls`
+- `post topic refresh`
 - `post topic rm`
 
 Shortcut commands:
@@ -118,6 +119,7 @@ post file -i "Poster Pack" -p anime ./image.png
 post topic new anime
 post topic ls
 post topic ls anime
+post topic refresh anime
 post topic rm anime
 
 post ls

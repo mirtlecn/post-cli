@@ -618,6 +618,25 @@ func TestListTopicsUsesTopicType(t *testing.T) {
 	}
 }
 
+func TestRefreshTopicUsesTopicType(t *testing.T) {
+	service := NewService(&stubClient{
+		postJSONFunc: func(_ context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
+			if method != http.MethodPut || payload.Path != "anime" || payload.Type != "topic" || !export {
+				t.Fatalf("unexpected args: %s %#v %v", method, payload, export)
+			}
+			return []byte(`{"path":"anime","type":"topic","title":"anime","content":"2"}`), nil
+		},
+	}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+
+	output, err := service.RefreshTopic(context.Background(), "anime", true)
+	if err != nil {
+		t.Fatalf("RefreshTopic returned error: %v", err)
+	}
+	if output == "" || output[0] != '{' {
+		t.Fatalf("unexpected output: %q", output)
+	}
+}
+
 func TestRemoveTopicUsesTopicType(t *testing.T) {
 	service := NewService(&stubClient{
 		deleteFunc: func(_ context.Context, payload api.JSONRequest, export bool) ([]byte, error) {

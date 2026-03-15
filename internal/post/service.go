@@ -251,6 +251,17 @@ func (service *Service) CreateTopic(ctx context.Context, path string, export boo
 	return formatJSON(body)
 }
 
+func (service *Service) RefreshTopic(ctx context.Context, path string, export bool) (string, error) {
+	body, err := service.client.PostJSON(ctx, http.MethodPut, api.JSONRequest{
+		Path: path,
+		Type: "topic",
+	}, export)
+	if err != nil {
+		return "", err
+	}
+	return formatJSON(body)
+}
+
 func (service *Service) RemoveTopic(ctx context.Context, path string, export bool) (string, error) {
 	body, err := service.client.Delete(ctx, api.JSONRequest{
 		Path: path,

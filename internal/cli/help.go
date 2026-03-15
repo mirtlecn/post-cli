@@ -13,6 +13,7 @@ Usage:
   post topic new <topic>       Create a topic
   post topic ls                List all topics
   post topic ls <topic>        Show one topic
+  post topic refresh <topic>   Rebuild a topic home
   post topic rm <topic>        Delete a topic
   post new [opts] -f <file>    Upload file contents
   post new -r [opts]           Upload clipboard contents (explicit read)
@@ -64,7 +65,7 @@ Options for shortcut commands:
   -r, --read-clipboard           Enabled by default for md/qr/html/text/url (not for post file)
   -w, --write-clipboard          Enabled by default for shortcut commands
 
-Options for 'topic ls' and 'topic rm':
+Options for 'topic ls', 'topic refresh', and 'topic rm':
   -x, --export                   Return full content
 
 Environment variables:
@@ -102,6 +103,7 @@ Examples:
   post topic new anime
   post topic ls
   post topic ls anime
+  post topic refresh anime
   post topic rm anime
   post new -f ~/notes.txt
   post new -s mycode -f script.sh

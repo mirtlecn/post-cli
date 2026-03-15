@@ -98,6 +98,7 @@ run_success "ls-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./po
 run_success "export-all" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post export
 run_success "export-one" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post export "$PREFIX-update"
 run_success "export-topic-item" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post export "$TOPIC_NAME/note"
+run_success "topic-refresh" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic refresh -x "$TOPIC_NAME"
 run_success "config-file" env POST_HOST= POST_TOKEN= POST_CONFIG="$CONFIG_FILE" ./post ls "$PREFIX-text"
 run_success "rm-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post rm -x "$PREFIX-file-content"
 run_success "rm" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post rm "$PREFIX-export"
@@ -113,6 +114,7 @@ run_failure "missing-file-flag" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOK
 run_failure "missing-file" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -f "$TMP_DIR/not-found.txt"
 run_failure "missing-rm-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post rm
 run_failure "topic-new-missing-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic new
+run_failure "topic-refresh-missing-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic refresh
 run_failure "topic-rm-missing-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic rm
 run_failure "topic-unknown-command" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic oops
 run_failure "shortcut-file-missing-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y

@@ -196,7 +196,7 @@ func (app *App) runRemove(ctx context.Context, service *post.Service, args []str
 
 func (app *App) runTopic(ctx context.Context, service *post.Service, args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: post topic <new|ls|rm> [args]")
+		return fmt.Errorf("usage: post topic <new|ls|refresh|rm> [args]")
 	}
 
 	switch args[0] {
@@ -216,6 +216,20 @@ func (app *App) runTopic(ctx context.Context, service *post.Service, args []stri
 			return err
 		}
 		output, err := service.ListTopics(ctx, path, export)
+		if err != nil {
+			return err
+		}
+		_, _ = io.WriteString(app.stdout, output)
+		return nil
+	case "refresh":
+		path, export, err := parsePathExportOptions(args[1:], "refresh")
+		if err != nil {
+			return err
+		}
+		if path == "" {
+			return fmt.Errorf("usage: post topic refresh [-x|--export] <topic>")
+		}
+		output, err := service.RefreshTopic(ctx, path, export)
 		if err != nil {
 			return err
 		}
