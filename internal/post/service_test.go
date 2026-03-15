@@ -508,6 +508,97 @@ func TestCreateTopicUsesTopicType(t *testing.T) {
 	}
 }
 
+func TestNewCreatesTopicWithoutContent(t *testing.T) {
+	service := NewService(&stubClient{
+		postJSONFunc: func(_ context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
+			if method != http.MethodPost || export {
+				t.Fatalf("unexpected args: %s %v", method, export)
+			}
+			if payload.Path != "anime" || payload.Type != "topic" || payload.URL != "" {
+				t.Fatalf("unexpected payload: %#v", payload)
+			}
+			return []byte(`{"surl":"https://sho.rt/anime","path":"anime","type":"topic","title":"anime","content":"0","ttl":null}`), nil
+		},
+	}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+
+	result, err := service.New(context.Background(), NewOptions{
+		Type:        "topic",
+		Slug:        "anime",
+		Method:      http.MethodPost,
+		SkipConfirm: true,
+		StdinTTY:    true,
+	})
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	if result.Stdout != "https://sho.rt/anime\n" {
+		t.Fatalf("unexpected stdout: %q", result.Stdout)
+	}
+}
+
+func TestNewRejectsTopicWithoutSlug(t *testing.T) {
+	service := NewService(&stubClient{}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+
+	_, err := service.New(context.Background(), NewOptions{
+		Type:        "topic",
+		Method:      http.MethodPost,
+		SkipConfirm: true,
+		StdinTTY:    true,
+	})
+	if err == nil || err.Error() != "--slug is required when --type topic is set" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestNewRejectsTopicContent(t *testing.T) {
+	service := NewService(&stubClient{}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+
+	_, err := service.New(context.Background(), NewOptions{
+		Type:        "topic",
+		Slug:        "anime",
+		Args:        []string{"# hi"},
+		Method:      http.MethodPost,
+		SkipConfirm: true,
+		StdinTTY:    true,
+	})
+	if err == nil || err.Error() != "content is not supported when --type topic is set" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestNewRejectsTopicClipboardRead(t *testing.T) {
+	service := NewService(&stubClient{}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+
+	_, err := service.New(context.Background(), NewOptions{
+		Type:          "topic",
+		Slug:          "anime",
+		Method:        http.MethodPost,
+		SkipConfirm:   true,
+		StdinTTY:      true,
+		ReadClipboard: true,
+	})
+	if err == nil || err.Error() != "--read-clipboard is not supported when --type topic is set" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestNewRejectsTopicTTL(t *testing.T) {
+	service := NewService(&stubClient{}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
+	ttl := 1
+
+	_, err := service.New(context.Background(), NewOptions{
+		Type:        "topic",
+		Slug:        "anime",
+		TTL:         &ttl,
+		Method:      http.MethodPost,
+		SkipConfirm: true,
+		StdinTTY:    true,
+	})
+	if err == nil || err.Error() != "--ttl is not supported when --type topic is set" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestListTopicsUsesTopicType(t *testing.T) {
 	service := NewService(&stubClient{
 		getFunc: func(_ context.Context, payload api.JSONRequest, export bool) ([]byte, error) {

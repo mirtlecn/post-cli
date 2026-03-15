@@ -72,6 +72,10 @@ func (service *Service) New(ctx context.Context, options NewOptions) (Result, er
 		return Result{}, err
 	}
 
+	if isTopicCreation(options) {
+		return service.createTopicFromNew(ctx, options)
+	}
+
 	content, label, err := service.resolveContent(options)
 	if err != nil {
 		return Result{}, err
@@ -116,6 +120,58 @@ func (service *Service) New(ctx context.Context, options NewOptions) (Result, er
 		}
 		responseBody, err = service.client.PostJSON(ctx, options.Method, payload, options.Export)
 	}
+	if err != nil {
+		return Result{}, err
+	}
+
+	var response createResponse
+	if err := json.Unmarshal(responseBody, &response); err != nil {
+		return Result{}, fmt.Errorf("parse create response: %w", err)
+	}
+	if response.ShortURL == "" {
+		return Result{}, fmt.Errorf("no URL returned from API; response: %s", string(responseBody))
+	}
+
+	result := Result{}
+	if options.WriteClipboard {
+		if !service.clipboard.CanWriteText() {
+			result.Stderr += "warning: clipboard write is unavailable\n"
+		} else if err := service.clipboard.WriteText(response.ShortURL); err != nil {
+			result.Stderr += fmt.Sprintf("warning: failed to copy to clipboard: %s\n", err)
+		} else {
+			result.Stderr += fmt.Sprintf("Copied to clipboard: %s\n", response.ShortURL)
+		}
+	}
+
+	if options.Export {
+		formatted, formatErr := formatJSON(responseBody)
+		if formatErr != nil {
+			return Result{}, formatErr
+		}
+		result.Stdout = formatted
+		return result, nil
+	}
+
+	result.Stdout = response.ShortURL + "\n"
+	return result, nil
+}
+
+func (service *Service) createTopicFromNew(ctx context.Context, options NewOptions) (Result, error) {
+	if !options.SkipConfirm && options.StdinTTY && options.Confirm != nil {
+		writeConfirmPreview(service.stderr, "", "", options, "topic")
+		accepted, confirmErr := options.Confirm("")
+		if confirmErr != nil {
+			return Result{}, confirmErr
+		}
+		if !accepted {
+			return Result{Stderr: "Aborted.\n"}, nil
+		}
+	}
+
+	responseBody, err := service.client.PostJSON(ctx, options.Method, api.JSONRequest{
+		Path: options.Slug,
+		Type: "topic",
+	}, options.Export)
 	if err != nil {
 		return Result{}, err
 	}
@@ -400,6 +456,10 @@ func formatConfirmType(value string, requestType string) string {
 }
 
 func validateNewOptions(options NewOptions) error {
+	if isTopicCreation(options) {
+		return validateTopicCreationOptions(options)
+	}
+
 	if options.TTL != nil && *options.TTL < 0 {
 		return fmt.Errorf("ttl must be a non-negative number")
 	}
@@ -415,6 +475,35 @@ func validateNewOptions(options NewOptions) error {
 	topicPrefix := options.Topic + "/"
 	if strings.Contains(options.Slug, "/") && !strings.HasPrefix(options.Slug, topicPrefix) {
 		return fmt.Errorf("slug must start with '%s' when --topic %s is set", topicPrefix, options.Topic)
+	}
+	return nil
+}
+
+func isTopicCreation(options NewOptions) bool {
+	return options.Type == "topic"
+}
+
+func validateTopicCreationOptions(options NewOptions) error {
+	if options.Slug == "" {
+		return fmt.Errorf("--slug is required when --type topic is set")
+	}
+	if options.TTL != nil {
+		return fmt.Errorf("--ttl is not supported when --type topic is set")
+	}
+	if options.FilePath != "" {
+		return fmt.Errorf("--file is not supported when --type topic is set")
+	}
+	if options.Topic != "" {
+		return fmt.Errorf("--topic is not supported when --type topic is set")
+	}
+	if options.Title != "" {
+		return fmt.Errorf("--title is not supported when --type topic is set")
+	}
+	if len(options.Args) > 0 {
+		return fmt.Errorf("content is not supported when --type topic is set")
+	}
+	if options.ReadClipboard {
+		return fmt.Errorf("--read-clipboard is not supported when --type topic is set")
 	}
 	return nil
 }

@@ -21,6 +21,7 @@ CONFIG_FILE="$TMP_DIR/config.json"
 PREFIX="smoke-$(date +%s)"
 TOPIC_NAME="$PREFIX-topic"
 TOPIC_EXPORT_NAME="$PREFIX-topic-export"
+TOPIC_VIA_NEW_NAME="$PREFIX-topic-via-new"
 
 printf 'file payload\n' > "$SAMPLE_FILE"
 cat > "$CONFIG_FILE" <<EOF
@@ -57,6 +58,7 @@ run_success "completion-powershell" ./post completion powershell
 run_success "ls-all" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls
 run_success "topic-new" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic new "$TOPIC_NAME"
 run_success "topic-new-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic new "$TOPIC_EXPORT_NAME"
+run_success "topic-new-via-type" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y --type topic -s "$TOPIC_VIA_NEW_NAME"
 run_success "topic-ls-all" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic ls
 run_success "topic-ls-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic ls -x "$TOPIC_NAME"
 run_success "topic-ls-one" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic ls "$TOPIC_NAME"
@@ -101,6 +103,7 @@ run_success "rm-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./po
 run_success "rm" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post rm "$PREFIX-export"
 run_success "topic-rm-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic rm -x "$TOPIC_EXPORT_NAME"
 run_success "topic-rm" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic rm "$TOPIC_NAME"
+run_success "topic-rm-via-new" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic rm "$TOPIC_VIA_NEW_NAME"
 
 run_failure "missing-config" env POST_HOST= POST_TOKEN= POST_CONFIG="$TMP_DIR/not-found-config.json" ./post ls
 run_failure "invalid-convert" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -c bad value
@@ -122,6 +125,7 @@ run_failure "negative-ttl" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" .
 run_failure "shortcut-invalid-ttl" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post text -y -t nope text
 run_failure "type-convert-mismatch" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y --type text --convert html text
 run_failure "topic-missing-title" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -p "$PREFIX-missing-title" "topic text"
+run_failure "topic-type-with-content" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y --type topic -s "$PREFIX-topic-type-content" "# hi"
 run_failure "topic-path-mismatch" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -p "$PREFIX-topic-a" -i "Mismatch" -s "$PREFIX-topic-b/item" "topic text"
 run_failure "topic-not-found" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -p "$PREFIX-missing-topic" -i "Missing Topic" -s "$PREFIX-missing-topic/item" "topic text"
 run_failure "duplicate-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -s "$PREFIX-text" "duplicate text"
