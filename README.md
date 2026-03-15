@@ -168,19 +168,25 @@ When no clipboard read command is available, clipboard input fails with an expli
 Local build:
 
 ```bash
-go build -o post ./cmd/post
+make build
+```
+
+Clean rebuild:
+
+```bash
+make rebuild
 ```
 
 Run tests:
 
 ```bash
-go test ./...
+make test
 ```
 
 Run the local smoke test:
 
 ```bash
-POST_HOST=http://localhost:3000 POST_TOKEN=demo ./scripts/smoke_local.sh
+POST_HOST=http://localhost:3000 POST_TOKEN=demo make smoke-local
 ```
 
 ## SKILLs for AI Agents
