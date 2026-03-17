@@ -73,6 +73,7 @@ Shortcut commands:
 - `post url`
 
 Shortcut commands default to `ttl=10080` minutes unless `-t` is provided explicitly. `ttl=0` means no expiration.
+For shortcut commands, automatic clipboard read/write is enabled by default. Passing `-r` or `-w` disables the corresponding default behavior.
 
 ## Input Sources
 

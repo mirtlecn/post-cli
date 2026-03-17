@@ -32,8 +32,14 @@ func TestParseNewOptions(t *testing.T) {
 	if !options.ReadClipboard {
 		t.Fatal("expected read clipboard flag")
 	}
+	if !options.ReadClipboardSet {
+		t.Fatal("expected read clipboard flag marker")
+	}
 	if !options.WriteClipboard {
 		t.Fatal("expected write clipboard flag")
+	}
+	if !options.WriteClipboardSet {
+		t.Fatal("expected write clipboard flag marker")
 	}
 	if len(options.Args) != 2 {
 		t.Fatalf("unexpected args: %#v", options.Args)
@@ -117,6 +123,9 @@ func TestParseNewOptionsSupportsCombinedClipboardFlags(t *testing.T) {
 	}
 	if !options.ReadClipboard || !options.WriteClipboard {
 		t.Fatalf("unexpected clipboard flags: read=%v write=%v", options.ReadClipboard, options.WriteClipboard)
+	}
+	if !options.ReadClipboardSet || !options.WriteClipboardSet {
+		t.Fatalf("unexpected clipboard flag markers: read=%v write=%v", options.ReadClipboardSet, options.WriteClipboardSet)
 	}
 }
 
@@ -383,6 +392,45 @@ func TestParseShortcutOptionsUsesDefaultTTL(t *testing.T) {
 	}
 	if len(options.Args) != 1 || options.Args[0] != "hello" {
 		t.Fatalf("unexpected args: %#v", options.Args)
+	}
+}
+
+func TestParseShortcutOptionsDisablesDefaultClipboardReadWhenFlagIsSet(t *testing.T) {
+	options, err := parseShortcutOptions("text", []string{"-r", "hello"})
+	if err != nil {
+		t.Fatalf("parseShortcutOptions returned error: %v", err)
+	}
+
+	if options.ReadClipboard {
+		t.Fatal("did not expect read clipboard enabled when -r is provided for shortcut command")
+	}
+	if !options.WriteClipboard {
+		t.Fatal("expected write clipboard to remain enabled by default")
+	}
+}
+
+func TestParseShortcutOptionsDisablesDefaultClipboardWriteWhenFlagIsSet(t *testing.T) {
+	options, err := parseShortcutOptions("text", []string{"-w", "hello"})
+	if err != nil {
+		t.Fatalf("parseShortcutOptions returned error: %v", err)
+	}
+
+	if !options.ReadClipboard {
+		t.Fatal("expected read clipboard to remain enabled by default")
+	}
+	if options.WriteClipboard {
+		t.Fatal("did not expect write clipboard enabled when -w is provided for shortcut command")
+	}
+}
+
+func TestParseShortcutOptionsDisablesDefaultClipboardReadAndWriteWhenFlagsAreSet(t *testing.T) {
+	options, err := parseShortcutOptions("text", []string{"-rw", "hello"})
+	if err != nil {
+		t.Fatalf("parseShortcutOptions returned error: %v", err)
+	}
+
+	if options.ReadClipboard || options.WriteClipboard {
+		t.Fatalf("expected both clipboard defaults disabled, got read=%v write=%v", options.ReadClipboard, options.WriteClipboard)
 	}
 }
 

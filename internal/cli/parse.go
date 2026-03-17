@@ -64,9 +64,11 @@ func parseNewOptions(args []string) (post.NewOptions, error) {
 			index++
 		case "-r", "--read-clipboard":
 			options.ReadClipboard = true
+			options.ReadClipboardSet = true
 			index++
 		case "-w", "--write-clipboard":
 			options.WriteClipboard = true
+			options.WriteClipboardSet = true
 			index++
 		case "-x", "--export":
 			options.Export = true

@@ -62,8 +62,8 @@ Options for shortcut commands:
   -y, --no-confirm               Skip confirmation prompt
   -x, --export                   Return full create/update response
   -f, --file <path>              Read content from file (not for post file)
-  -r, --read-clipboard           Enabled by default for md/qr/html/text/url (not for post file)
-  -w, --write-clipboard          Enabled by default for shortcut commands
+  -r, --read-clipboard           Disable default clipboard read for md/qr/html/text/url (unsupported for post file)
+  -w, --write-clipboard          Disable default clipboard write for shortcut commands
 
 Options for 'topic ls', 'topic refresh', and 'topic rm':
   -x, --export                   Return full content

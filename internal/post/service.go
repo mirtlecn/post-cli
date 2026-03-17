@@ -31,20 +31,22 @@ type Service struct {
 }
 
 type NewOptions struct {
-	Slug           string
-	Title          string
-	Topic          string
-	TTL            *int
-	SkipConfirm    bool
-	ReadClipboard  bool
-	WriteClipboard bool
-	FilePath       string
-	Type           string
-	Method         string
-	Export         bool
-	Args           []string
-	StdinTTY       bool
-	Confirm        func(label string) (bool, error)
+	Slug              string
+	Title             string
+	Topic             string
+	TTL               *int
+	SkipConfirm       bool
+	ReadClipboard     bool
+	ReadClipboardSet  bool
+	WriteClipboard    bool
+	WriteClipboardSet bool
+	FilePath          string
+	Type              string
+	Method            string
+	Export            bool
+	Args              []string
+	StdinTTY          bool
+	Confirm           func(label string) (bool, error)
 }
 
 type Result struct {

@@ -92,8 +92,8 @@ func parseShortcutOptions(command string, args []string) (post.NewOptions, error
 	if !definition.AllowFileContent && options.FilePath != "" {
 		return options, fmt.Errorf("option --file is not supported with shortcut command '%s'", command)
 	}
-	options.ReadClipboard = true
-	options.WriteClipboard = true
+	options.ReadClipboard = !options.ReadClipboardSet
+	options.WriteClipboard = !options.WriteClipboardSet
 
 	return options, nil
 }
