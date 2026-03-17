@@ -1,4 +1,4 @@
 interface:
   display_name: "Post Publish"
-  short_description: "Publish content and return a link"
-  default_prompt: "Use $post-publish to publish content and return the final link."
+  short_description: "Publish content through post CLI and return a link"
+  default_prompt: "Use $post-publish to publish content with the local post CLI and return the final shareable URL."

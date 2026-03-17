@@ -1,68 +1,64 @@
 ---
 name: post-publish
-description: Use when publishing links, text, HTML, webpages, Markdown, QR codes, files, or clipboard content to a Post service and returning an accessible link. Trigger on requests like publishing content to the internet, uploading a file and returning a link, creating a short link for a URL, sharing Markdown or HTML online, or turning text into a QR code and publishing it.
+description: Use when publishing text, Markdown, HTML, URLs, QR codes, files, or clipboard content through the local post CLI and returning a shareable link. Trigger on requests to upload content, create a short link, publish a file, publish Markdown as HTML, publish a QR code, or post content to a configured Post service.
 ---
 
 # Post Publish
 
-Use this skill to publish content with `post-cli` and return the final accessible link by default.
-
-Before publishing, ensure configuration exists and ensure the skill-local release build of `post-cli` is installed.
+Use this skill to publish content with the local `post` CLI and return the final shareable URL.
 
 ## Workflow
 
-1. Run `./scripts/configure_post.sh`.
-2. Run `./scripts/install_post_cli.sh`.
-3. Choose the correct publish mode and call `./scripts/share_to_post.sh`.
+1. Resolve the CLI in this order: `post` in PATH, then `./post` in the skill directory.
+2. Resolve config in this order: `POST_HOST` and `POST_TOKEN`, then `~/.config/post/config.json`.
+3. If the CLI is missing, stop and report that `post` is unavailable. Ask the user to download it from https://github.com/mirtlecn/post-cli manually.
+4. If config is missing, ask the user for host and token. Do not invent credentials.
+5. Use the shortest non-interactive command that matches the request. Always pass `-y` for create/update commands.
+6. Return only the final URL on success unless the user explicitly asks for full output.
 
-Do not compile from source unless the user explicitly asks for it. Prefer the latest GitHub Releases build.
+## Default Rules
 
-## Rules
+- When running in sandboxed agents (such as Codex), directly request user elevation to gain access to the network and file system; otherwise, the operation may fail due to insufficient permissions.
+- Default ttl (`-t` parameter) is `10080` minutes unless the user specifies another value.
+- Do not use delete flows in this skill.
+- Use `-f ./path/to/file` for uploading file contents for file itself
+- Use pipe input for command output, e.g. `echo "hello" | post new -c text -y -t 10080`
+- If a command fails, return the exact error instead of guessing.
 
-- Return only the final link on success unless the user explicitly asks for the full response.
-- Use the skill-local binary at `./bin/post`.
-- Download the release binary only once. If `./bin/post` already exists, reuse it
-- Prefer `~/.config/post/config.json` for persisted configuration.
-- If `POST_HOST` and `POST_TOKEN` are both present in the environment, use them without overwriting the config file.
-- If configuration is missing, collect `host` and `token`, then write them to `~/.config/post/config.json`.
-- If macOS blocks the unsigned binary, first remove the quarantine attribute. If execution still fails, return the exact error and tell the user to allow the app manually in System Settings.
-- Do not include delete flows in this skill.
+## Common Commands
 
-## Publish Mapping
+Prepare environment when needed:
 
-- Plain text:
-  - `./scripts/share_to_post.sh --text "content"`
-- URL short link:
-  - `./scripts/share_to_post.sh --text "https://example.com" --convert url`
-- Markdown file:
-  - `./scripts/share_to_post.sh --file /abs/path/doc.md --convert md2html`
-- HTML content:
-  - `./scripts/share_to_post.sh --text "<h1>Hello</h1>" --convert html`
-- QR code:
-  - `./scripts/share_to_post.sh --text "content" --convert qrcode`
-- Binary file upload:
-  - `./scripts/share_to_post.sh --file /abs/path/image.png --convert file`
-- Clipboard:
-  - `./scripts/share_to_post.sh --clipboard`
+```bash
+export POST_HOST="https://your-post-host"
+export POST_TOKEN="your-token"
+```
 
-## Parameter Defaults
+Create text, Markdown, URL, HTML, or QR:
 
-- `ttl`: default to `10080` minutes. Omit it only when the user explicitly asks for a permanent link.
-- `slug`: use the user-provided slug first. Otherwise generate a readable slug from the content, then retry with suffixes on conflict.
-- `convert`: infer from the request when not specified:
-  - URL or short-link intent -> `url`
-  - Markdown -> `md2html`
-  - HTML -> `html`
-  - QR code intent -> `qrcode`
-  - File upload intent -> `file`
-  - Otherwise -> `text`
-- `update`: pass only when the user explicitly asks to overwrite an existing slug.
-- `export`: pass only when the user wants the full JSON response.
+```bash
+post new -c text -y -t 10080 "hello world"
+post new -c md2html -y -t 10080 -f ./README.md
+post new -c url -y -t 10080 "https://example.com"
+post new -c html -y -t 10080 -f <(echo '<h1>Hello</h1>')
+post new -c qr -y -t 10080 "https://example.com"
+```
 
-## Failure Handling
+Upload files or file contents:
 
-- Missing config: ask the user for `POST_HOST` and `POST_TOKEN`, then write `~/.config/post/config.json`.
-- Invalid config JSON: return the parse error and stop.
-- Missing file for `--convert file`: return a direct error.
-- GitHub API or download failure: return the exact install failure and stop.
-- Service-side publish failure: return the CLI error without inventing causes.
+```bash
+post new -c file -y -t 10080 -f ./note.txt
+```
+
+## Notes
+
+- `post help` is the fallback when a flag combination is unclear.
+- Config file format:
+
+```json
+// ~/.config/post/config.json
+{
+  "host": "https://example.com",
+  "token": "your-token"
+}
+```
