@@ -452,18 +452,39 @@ func TestRunTopicRefreshUsesTopicType(t *testing.T) {
 	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{}, BuildInfo{})
 	service := post.NewService(&stubCreateClient{
 		postJSONFunc: func(_ context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
-			if method != http.MethodPut || payload.Path != "anime" || payload.Type != "topic" || !export {
+			if method != http.MethodPut || payload.Path != "anime" || payload.Title != "Anime Archive" || payload.Type != "topic" || !export {
 				t.Fatalf("unexpected args: %s %#v %v", method, payload, export)
 			}
 			return []byte(`{"path":"anime","type":"topic","title":"anime","content":"1"}`), nil
 		},
 	}, &stubCreateClipboard{}, bytes.NewBuffer(nil), &bytes.Buffer{})
 
-	err := app.runTopic(context.Background(), service, []string{"refresh", "-x", "anime"})
+	err := app.runTopic(context.Background(), service, []string{"refresh", "-x", "-i", "Anime Archive", "anime"})
 	if err != nil {
 		t.Fatalf("runTopic returned error: %v", err)
 	}
 	if !strings.Contains(stdout.String(), `"type": "topic"`) {
+		t.Fatalf("unexpected stdout: %q", stdout.String())
+	}
+}
+
+func TestRunTopicNewUsesTitleOption(t *testing.T) {
+	var stdout bytes.Buffer
+	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{}, BuildInfo{})
+	service := post.NewService(&stubCreateClient{
+		postJSONFunc: func(_ context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
+			if method != http.MethodPost || payload.Path != "anime" || payload.Title != "Anime Notes" || payload.Type != "topic" || !export {
+				t.Fatalf("unexpected args: %s %#v %v", method, payload, export)
+			}
+			return []byte(`{"path":"anime","type":"topic","title":"Anime Notes","content":"0"}`), nil
+		},
+	}, &stubCreateClipboard{}, bytes.NewBuffer(nil), &bytes.Buffer{})
+
+	err := app.runTopic(context.Background(), service, []string{"new", "-i", "Anime Notes", "anime"})
+	if err != nil {
+		t.Fatalf("runTopic returned error: %v", err)
+	}
+	if !strings.Contains(stdout.String(), `"title": "Anime Notes"`) {
 		t.Fatalf("unexpected stdout: %q", stdout.String())
 	}
 }

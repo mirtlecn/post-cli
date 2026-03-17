@@ -11,6 +11,12 @@ import (
 	"github.com/mirtle/post-cli/internal/post"
 )
 
+type topicMutationOptions struct {
+	Path   string
+	Title  string
+	Export bool
+}
+
 func parseNewOptions(args []string) (post.NewOptions, error) {
 	expandedArgs, err := expandCombinedBooleanFlags(args)
 	if err != nil {
@@ -175,6 +181,42 @@ func parsePathExportOptions(args []string, command string) (string, bool, error)
 		return "", export, nil
 	}
 	return "", export, nil
+}
+
+func parseTopicMutationOptions(args []string, command string) (topicMutationOptions, error) {
+	options := topicMutationOptions{}
+	for index := 0; index < len(args); {
+		arg := args[index]
+		switch arg {
+		case "-x", "--export":
+			options.Export = true
+			index++
+		case "-i", "--title":
+			value, nextIndex, err := nextValue(args, index)
+			if err != nil {
+				return topicMutationOptions{}, fmt.Errorf("option %s requires a value", arg)
+			}
+			options.Title = value
+			index = nextIndex
+		case "--":
+			index++
+			if index < len(args) {
+				options.Path = args[index]
+			}
+			index = len(args)
+		default:
+			if strings.HasPrefix(arg, "-") {
+				return topicMutationOptions{}, fmt.Errorf("unknown option '%s'. Try: post help", arg)
+			}
+			if options.Path != "" {
+				return topicMutationOptions{}, fmt.Errorf("usage: post topic %s [-x|--export] [-i|--title <title>] <topic>", command)
+			}
+			options.Path = arg
+			index++
+		}
+	}
+
+	return options, nil
 }
 
 func shouldPrependNew(args []string) bool {

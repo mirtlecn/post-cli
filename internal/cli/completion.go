@@ -90,10 +90,14 @@ _post_completion() {
     topic)
       case "${COMP_WORDS[2]}" in
         new)
-          COMPREPLY=()
+          if [[ "${current}" == -* ]]; then
+            COMPREPLY=($(compgen -W "-i --title -x --export" -- "${current}"))
+          fi
           ;;
         ls|refresh|rm)
-          if [[ "${current}" == -* ]]; then
+          if [[ "${COMP_WORDS[2]}" == "refresh" && "${current}" == -* ]]; then
+            COMPREPLY=($(compgen -W "-i --title -x --export" -- "${current}"))
+          elif [[ "${current}" == -* ]]; then
             COMPREPLY=($(compgen -W "-x --export" -- "${current}"))
           else
             COMPREPLY=($(compgen -W "$(_post_topic_names)" -- "${current}"))
@@ -225,13 +229,19 @@ _post() {
       (( CURRENT -= 1 ))
       case $words[2] in
         new)
-          _arguments '1:topic: '
+          _arguments -s \
+            '(-i --title)'{-i,--title}'[Set topic title]:title: ' \
+            '(-x --export)'{-x,--export}'[Return full content]' \
+            '1:topic: '
           ;;
         ls)
           _arguments -s '(-x --export)'{-x,--export}'[Return full content]' '*:topic:_post_topic_names'
           ;;
         refresh)
-          _arguments -s '(-x --export)'{-x,--export}'[Return full content]' '*:topic:_post_topic_names'
+          _arguments -s \
+            '(-i --title)'{-i,--title}'[Set topic title]:title: ' \
+            '(-x --export)'{-x,--export}'[Return full content]' \
+            '*:topic:_post_topic_names'
           ;;
         rm)
           _arguments -s '(-x --export)'{-x,--export}'[Return full content]' '*:topic:_post_topic_names'

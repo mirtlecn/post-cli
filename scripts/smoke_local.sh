@@ -56,9 +56,9 @@ run_success "completion-bash" ./post completion bash
 run_success "completion-zsh" ./post completion zsh
 run_success "completion-powershell" ./post completion powershell
 run_success "ls-all" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls
-run_success "topic-new" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic new "$TOPIC_NAME"
+run_success "topic-new" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic new -i "Smoke Topic" "$TOPIC_NAME"
 run_success "topic-new-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic new "$TOPIC_EXPORT_NAME"
-run_success "topic-new-via-type" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y --type topic -s "$TOPIC_VIA_NEW_NAME"
+run_success "topic-new-via-type" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y --type topic -i "Smoke Via Type" -s "$TOPIC_VIA_NEW_NAME"
 run_success "topic-ls-all" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic ls
 run_success "topic-ls-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic ls -x "$TOPIC_NAME"
 run_success "topic-ls-one" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic ls "$TOPIC_NAME"
@@ -98,7 +98,7 @@ run_success "ls-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./po
 run_success "export-all" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post export
 run_success "export-one" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post export "$PREFIX-update"
 run_success "export-topic-item" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post export "$TOPIC_NAME/note"
-run_success "topic-refresh" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic refresh -x "$TOPIC_NAME"
+run_success "topic-refresh" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post topic refresh -x -i "Smoke Topic Refreshed" "$TOPIC_NAME"
 run_success "config-file" env POST_HOST= POST_TOKEN= POST_CONFIG="$CONFIG_FILE" ./post ls "$PREFIX-text"
 run_success "rm-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post rm -x "$PREFIX-file-content"
 run_success "rm" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post rm "$PREFIX-export"

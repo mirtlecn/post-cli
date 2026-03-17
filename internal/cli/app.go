@@ -201,10 +201,14 @@ func (app *App) runTopic(ctx context.Context, service *post.Service, args []stri
 
 	switch args[0] {
 	case "new":
-		if len(args) != 2 {
-			return fmt.Errorf("usage: post topic new <topic>")
+		options, err := parseTopicMutationOptions(args[1:], "new")
+		if err != nil {
+			return err
 		}
-		output, err := service.CreateTopic(ctx, args[1], true)
+		if options.Path == "" {
+			return fmt.Errorf("usage: post topic new [-x|--export] [-i|--title <title>] <topic>")
+		}
+		output, err := service.CreateTopic(ctx, options.Path, options.Title, true)
 		if err != nil {
 			return err
 		}
@@ -222,14 +226,14 @@ func (app *App) runTopic(ctx context.Context, service *post.Service, args []stri
 		_, _ = io.WriteString(app.stdout, output)
 		return nil
 	case "refresh":
-		path, export, err := parsePathExportOptions(args[1:], "refresh")
+		options, err := parseTopicMutationOptions(args[1:], "refresh")
 		if err != nil {
 			return err
 		}
-		if path == "" {
-			return fmt.Errorf("usage: post topic refresh [-x|--export] <topic>")
+		if options.Path == "" {
+			return fmt.Errorf("usage: post topic refresh [-x|--export] [-i|--title <title>] <topic>")
 		}
-		output, err := service.RefreshTopic(ctx, path, export)
+		output, err := service.RefreshTopic(ctx, options.Path, options.Title, options.Export)
 		if err != nil {
 			return err
 		}

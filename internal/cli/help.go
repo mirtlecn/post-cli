@@ -65,7 +65,11 @@ Options for shortcut commands:
   -r, --read-clipboard           Disable default clipboard read for md/qr/html/text/url (unsupported for post file)
   -w, --write-clipboard          Disable default clipboard write for shortcut commands
 
-Options for 'topic ls', 'topic refresh', and 'topic rm':
+Options for 'topic new' and 'topic refresh':
+  -i, --title <title>            Set topic title
+  -x, --export                   Return full content
+
+Options for 'topic ls' and 'topic rm':
   -x, --export                   Return full content
 
 Environment variables:
@@ -100,10 +104,10 @@ Examples:
   post text
   post text -f note.txt
   post url https://example.com
-  post topic new anime
+  post topic new -i "Anime Notes" anime
   post topic ls
   post topic ls anime
-  post topic refresh anime
+  post topic refresh -i "Anime Archive" anime
   post topic rm anime
   post new -f ~/notes.txt
   post new -s mycode -f script.sh

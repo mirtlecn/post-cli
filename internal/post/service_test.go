@@ -492,14 +492,14 @@ func TestCreateTopicUsesTopicType(t *testing.T) {
 			if method != http.MethodPost || !export {
 				t.Fatalf("unexpected args: %s %v", method, export)
 			}
-			if payload.Path != "anime" || payload.Type != "topic" {
+			if payload.Path != "anime" || payload.Title != "Anime Notes" || payload.Type != "topic" {
 				t.Fatalf("unexpected payload: %#v", payload)
 			}
 			return []byte(`{"surl":"https://sho.rt/anime","path":"anime","type":"topic","title":"anime","content":"0","ttl":null}`), nil
 		},
 	}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
 
-	output, err := service.CreateTopic(context.Background(), "anime", true)
+	output, err := service.CreateTopic(context.Background(), "anime", "Anime Notes", true)
 	if err != nil {
 		t.Fatalf("CreateTopic returned error: %v", err)
 	}
@@ -514,7 +514,7 @@ func TestNewCreatesTopicWithoutContent(t *testing.T) {
 			if method != http.MethodPost || export {
 				t.Fatalf("unexpected args: %s %v", method, export)
 			}
-			if payload.Path != "anime" || payload.Type != "topic" || payload.URL != "" {
+			if payload.Path != "anime" || payload.Title != "Anime Notes" || payload.Type != "topic" || payload.URL != "" {
 				t.Fatalf("unexpected payload: %#v", payload)
 			}
 			return []byte(`{"surl":"https://sho.rt/anime","path":"anime","type":"topic","title":"anime","content":"0","ttl":null}`), nil
@@ -524,6 +524,7 @@ func TestNewCreatesTopicWithoutContent(t *testing.T) {
 	result, err := service.New(context.Background(), NewOptions{
 		Type:        "topic",
 		Slug:        "anime",
+		Title:       "Anime Notes",
 		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    true,
@@ -621,14 +622,14 @@ func TestListTopicsUsesTopicType(t *testing.T) {
 func TestRefreshTopicUsesTopicType(t *testing.T) {
 	service := NewService(&stubClient{
 		postJSONFunc: func(_ context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
-			if method != http.MethodPut || payload.Path != "anime" || payload.Type != "topic" || !export {
+			if method != http.MethodPut || payload.Path != "anime" || payload.Title != "Anime Archive" || payload.Type != "topic" || !export {
 				t.Fatalf("unexpected args: %s %#v %v", method, payload, export)
 			}
 			return []byte(`{"path":"anime","type":"topic","title":"anime","content":"2"}`), nil
 		},
 	}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
 
-	output, err := service.RefreshTopic(context.Background(), "anime", true)
+	output, err := service.RefreshTopic(context.Background(), "anime", "Anime Archive", true)
 	if err != nil {
 		t.Fatalf("RefreshTopic returned error: %v", err)
 	}

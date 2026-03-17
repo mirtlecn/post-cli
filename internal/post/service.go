@@ -171,8 +171,9 @@ func (service *Service) createTopicFromNew(ctx context.Context, options NewOptio
 	}
 
 	responseBody, err := service.client.PostJSON(ctx, options.Method, api.JSONRequest{
-		Path: options.Slug,
-		Type: "topic",
+		Path:  options.Slug,
+		Title: options.Title,
+		Type:  "topic",
 	}, options.Export)
 	if err != nil {
 		return Result{}, err
@@ -242,10 +243,11 @@ func (service *Service) ListTopics(ctx context.Context, path string, export bool
 	return formatJSON(body)
 }
 
-func (service *Service) CreateTopic(ctx context.Context, path string, export bool) (string, error) {
+func (service *Service) CreateTopic(ctx context.Context, path string, title string, export bool) (string, error) {
 	body, err := service.client.PostJSON(ctx, http.MethodPost, api.JSONRequest{
-		Path: path,
-		Type: "topic",
+		Path:  path,
+		Title: title,
+		Type:  "topic",
 	}, export)
 	if err != nil {
 		return "", err
@@ -253,10 +255,11 @@ func (service *Service) CreateTopic(ctx context.Context, path string, export boo
 	return formatJSON(body)
 }
 
-func (service *Service) RefreshTopic(ctx context.Context, path string, export bool) (string, error) {
+func (service *Service) RefreshTopic(ctx context.Context, path string, title string, export bool) (string, error) {
 	body, err := service.client.PostJSON(ctx, http.MethodPut, api.JSONRequest{
-		Path: path,
-		Type: "topic",
+		Path:  path,
+		Title: title,
+		Type:  "topic",
 	}, export)
 	if err != nil {
 		return "", err
@@ -508,9 +511,6 @@ func validateTopicCreationOptions(options NewOptions) error {
 	}
 	if options.Topic != "" {
 		return fmt.Errorf("--topic is not supported when --type topic is set")
-	}
-	if options.Title != "" {
-		return fmt.Errorf("--title is not supported when --type topic is set")
 	}
 	if len(options.Args) > 0 {
 		return fmt.Errorf("content is not supported when --type topic is set")
