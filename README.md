@@ -172,6 +172,12 @@ Local build:
 make build
 ```
 
+Version source:
+
+```text
+./VERSION
+```
+
 Clean rebuild:
 
 ```bash
@@ -188,6 +194,12 @@ Run the local smoke test:
 
 ```bash
 POST_HOST=http://localhost:3000 POST_TOKEN=demo make smoke-local
+```
+
+Bump the release version and create the local Git tag:
+
+```bash
+./scripts/bump_version.sh v1.3.4
 ```
 
 ## SKILLs for AI Agents

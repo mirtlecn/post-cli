@@ -2,6 +2,14 @@ GO ?= go
 BINARY ?= post
 MAIN_PACKAGE ?= ./cmd/post
 GO_PACKAGES ?= ./...
+VERSION_FILE ?= VERSION
+VERSION ?= $(shell cat $(VERSION_FILE))
+COMMIT ?= $(shell git rev-parse HEAD)
+BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+LDFLAGS ?= -s -w \
+	-X github.com/mirtle/post-cli/internal/buildinfo.Version=$(VERSION) \
+	-X github.com/mirtle/post-cli/internal/buildinfo.Commit=$(COMMIT) \
+	-X github.com/mirtle/post-cli/internal/buildinfo.BuildDate=$(BUILD_DATE)
 all: rebuild
 
 .PHONY: help build rebuild clean test smoke-local fmt
@@ -17,7 +25,7 @@ help:
 		'  make fmt          Format Go source files'
 
 build:
-	$(GO) build -o $(BINARY) $(MAIN_PACKAGE)
+	$(GO) build -ldflags "$(LDFLAGS)" -o $(BINARY) $(MAIN_PACKAGE)
 
 rebuild: clean build
 
