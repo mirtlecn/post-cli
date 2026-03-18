@@ -28,6 +28,9 @@ func TestLoadUsesConfigFileWhenEnvMissing(t *testing.T) {
 	if cfg.Token != "demo" {
 		t.Fatalf("unexpected token: %s", cfg.Token)
 	}
+	if cfg.PubTopic != "" {
+		t.Fatalf("unexpected pub topic: %s", cfg.PubTopic)
+	}
 }
 
 func TestLoadEnvOverridesConfigFile(t *testing.T) {
@@ -51,6 +54,28 @@ func TestLoadEnvOverridesConfigFile(t *testing.T) {
 	}
 	if cfg.Token != "override-token" {
 		t.Fatalf("unexpected token: %s", cfg.Token)
+	}
+}
+
+func TestLoadUsesPubTopicFromEnvOrConfig(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.json")
+	if err := os.WriteFile(configPath, []byte(`{"host":"https://example.com","token":"demo","pub_topic":"from-config"}`), 0o644); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	t.Setenv("POST_CONFIG", configPath)
+	t.Setenv("POST_HOST", "")
+	t.Setenv("POST_TOKEN", "")
+	t.Setenv("POST_PUB_TOPIC", "from-env")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load returned error: %v", err)
+	}
+
+	if cfg.PubTopic != "from-env" {
+		t.Fatalf("unexpected pub topic: %s", cfg.PubTopic)
 	}
 }
 

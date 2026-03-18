@@ -7,6 +7,7 @@ Usage:
   post md [opts] [text...]     Upload Markdown as HTML (default ttl: 10080)
   post qr [opts] [text...]     Upload text as QR code (default ttl: 10080)
   post file [opts] <file>      Upload a file path directly (default ttl: 10080)
+  post pub [opts] <file.md>    Publish Markdown file with inferred metadata
   post html [opts] [text...]   Upload HTML content (default ttl: 10080)
   post text [opts] [text...]   Upload text content (default ttl: 10080)
   post url [opts] [text...]    Upload URL content (default ttl: 10080)
@@ -67,6 +68,18 @@ Options for shortcut commands:
   -r, --read-clipboard           Disable default clipboard read for md/qr/html/text/url (unsupported for post file)
   -w, --write-clipboard          Disable default clipboard write for shortcut commands
 
+Options for 'pub':
+  -s, --slug <path>              Override front matter slug
+  -i, --title <title>            Override inferred title
+  -t, --ttl <minutes>            Optional TTL override
+  -y, --no-confirm               Skip confirmation prompt
+
+Pub metadata inference:
+  topic                          POST_PUB_TOPIC -> config pub_topic -> fail
+  title                          --title -> front matter title -> first H1 -> file name
+  created                        front matter created -> front matter date -> current time
+  slug                           --slug -> front matter slug
+
 Options for 'topic new' and 'topic refresh':
   -i, --title <title>            Set topic title
   -x, --export                   Return full content
@@ -78,13 +91,15 @@ Environment variables:
   POST_HOST    Base endpoint URL (e.g. https://example.com)
   POST_TOKEN   Bearer token
   POST_CONFIG  Optional config file path override
+  POST_PUB_TOPIC Default topic for post pub
 
 Config file:
   Default path: ~/.config/post/config.json
   JSON format:
     {
       "host": "https://example.com",
-      "token": "your-token"
+      "token": "your-token",
+      "pub_topic": "notes"
     }
   Environment variables override config file values
 
@@ -101,6 +116,7 @@ Examples:
   post file -f ./image.png
   post html '<h1>Hello</h1>'
   post html -f snippet.html
+  post pub ./note.md
   post text -p anime -i "Quick Note" "topic item"
   post file -p anime -i "Poster Pack" ./poster.png
   post text

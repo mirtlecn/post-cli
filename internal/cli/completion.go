@@ -43,7 +43,7 @@ _post_completion() {
   fi
 
   if [[ ${COMP_CWORD} -eq 1 ]]; then
-    COMPREPLY=($(compgen -W "new text md file url html qr ls export rm topic version completion help" -- "${current}"))
+    COMPREPLY=($(compgen -W "new text md file pub url html qr ls export rm topic version completion help" -- "${current}"))
     return 0
   fi
 
@@ -76,6 +76,13 @@ _post_completion() {
       ;;
     md|qr|html|text|url)
       COMPREPLY=($(compgen -W "-f --file -s --slug -i --title -p --topic --created -t --ttl -y --no-confirm -u --update -x --export -r --read-clipboard -w --write-clipboard" -- "${current}"))
+      ;;
+    pub)
+      if [[ "${current}" == -* ]]; then
+        COMPREPLY=($(compgen -W "-s --slug -i --title -t --ttl -y --no-confirm" -- "${current}"))
+      else
+        COMPREPLY=($(compgen -f -- "${current}"))
+      fi
       ;;
     file)
       if [[ "${current}" == -* ]]; then
@@ -142,6 +149,7 @@ _post() {
     'url:Upload URL content'
     'md:Upload Markdown as HTML'
     'file:Upload a file path directly'
+    'pub:Publish Markdown file with inferred metadata'
     'html:Upload HTML content'
     'qr:Upload text as QR code'
     'ls:List all posts or show a specific post'
@@ -195,6 +203,16 @@ _post() {
       shift words
       (( CURRENT -= 1 ))
       _arguments -s $shortcut_options '*:text: '
+      ;;
+    pub)
+      shift words
+      (( CURRENT -= 1 ))
+      _arguments -s \
+        '(-s --slug)'{-s,--slug}'[Override front matter slug]:slug: ' \
+        '(-i --title)'{-i,--title}'[Override inferred title]:title: ' \
+        '(-t --ttl)'{-t,--ttl}'[Optional TTL override]:minutes: ' \
+        '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]' \
+        '1:file:_files'
       ;;
     file)
       shift words
@@ -293,10 +311,11 @@ const powerShellCompletion = `Register-ArgumentCompleter -Native -CommandName po
     }
 
     $tokens = $commandAst.CommandElements | ForEach-Object { $_.Extent.Text }
-    $subcommands = @('new', 'text', 'md', 'file', 'url', 'html', 'qr', 'ls', 'export', 'rm', 'topic', 'version', 'completion', 'help')
+    $subcommands = @('new', 'text', 'md', 'file', 'pub', 'url', 'html', 'qr', 'ls', 'export', 'rm', 'topic', 'version', 'completion', 'help')
     $newOptions = @('-f', '--file', '-s', '--slug', '-i', '--title', '-p', '--topic', '--created', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-r', '--read-clipboard', '-w', '--write-clipboard', '-c', '--convert', '--type')
     $shortcutOptions = @('-f', '--file', '-s', '--slug', '-i', '--title', '-p', '--topic', '--created', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-r', '--read-clipboard', '-w', '--write-clipboard')
     $fileOptions = @('-f', '--file', '-s', '--slug', '-i', '--title', '-p', '--topic', '--created', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-w', '--write-clipboard')
+    $pubOptions = @('-s', '--slug', '-i', '--title', '-t', '--ttl', '-y', '--no-confirm')
     $lsOptions = @('-x', '--export')
     $topicSubcommands = @('new', 'ls', 'refresh', 'rm')
     $shells = @('bash', 'zsh', 'powershell')
@@ -379,6 +398,16 @@ const powerShellCompletion = `Register-ArgumentCompleter -Native -CommandName po
         'file' {
             if ($wordToComplete -and $wordToComplete.StartsWith('-')) {
                 $fileOptions
+            } else {
+                Get-ChildItem -Name -Path "$wordToComplete*" -ErrorAction SilentlyContinue | ForEach-Object {
+                    [System.Management.Automation.CompletionResult]::new($_, $_, 'ProviderItem', $_)
+                }
+                return
+            }
+        }
+        'pub' {
+            if ($wordToComplete -and $wordToComplete.StartsWith('-')) {
+                $pubOptions
             } else {
                 Get-ChildItem -Name -Path "$wordToComplete*" -ErrorAction SilentlyContinue | ForEach-Object {
                     [System.Management.Automation.CompletionResult]::new($_, $_, 'ProviderItem', $_)

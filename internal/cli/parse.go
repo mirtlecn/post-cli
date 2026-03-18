@@ -232,7 +232,7 @@ func shouldPrependNew(args []string) bool {
 	}
 
 	switch args[0] {
-	case "new", "md", "qr", "file", "html", "text", "url", "ls", "export", "rm", "topic", "help", "completion", "version", "--help", "-h", "--version", "-v":
+	case "new", "md", "qr", "file", "html", "text", "url", "pub", "ls", "export", "rm", "topic", "help", "completion", "version", "--help", "-h", "--version", "-v":
 		return false
 	default:
 		return true

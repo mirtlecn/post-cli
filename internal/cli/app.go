@@ -50,46 +50,53 @@ func (app *App) Run(ctx context.Context, args []string) error {
 	case "version", "--version", "-v":
 		return app.runVersion()
 	case "new":
-		host, token, _, err := loadRuntimeConfig()
+		cfg, err := loadRuntimeConfig()
 		if err != nil {
 			return err
 		}
-		service := newPostService(host, token, app.stdin, app.stderr)
-		return app.runNew(ctx, service, args, stdinTTY, host)
+		service := newPostService(cfg.Host, cfg.Token, app.stdin, app.stderr)
+		return app.runNew(ctx, service, args, stdinTTY, cfg.Host)
 	case "md", "qr", "file", "html", "text", "url":
-		host, token, _, err := loadRuntimeConfig()
+		cfg, err := loadRuntimeConfig()
 		if err != nil {
 			return err
 		}
-		service := newPostService(host, token, app.stdin, app.stderr)
-		return app.runShortcut(ctx, service, command, args, stdinTTY, host)
+		service := newPostService(cfg.Host, cfg.Token, app.stdin, app.stderr)
+		return app.runShortcut(ctx, service, command, args, stdinTTY, cfg.Host)
+	case "pub":
+		cfg, err := loadRuntimeConfig()
+		if err != nil {
+			return err
+		}
+		service := newPostService(cfg.Host, cfg.Token, app.stdin, app.stderr)
+		return app.runPub(ctx, service, args, stdinTTY, cfg.Host, cfg)
 	case "ls":
-		host, token, _, err := loadRuntimeConfig()
+		cfg, err := loadRuntimeConfig()
 		if err != nil {
 			return err
 		}
-		service := newPostService(host, token, app.stdin, app.stderr)
+		service := newPostService(cfg.Host, cfg.Token, app.stdin, app.stderr)
 		return app.runList(ctx, service, args)
 	case "export":
-		host, token, _, err := loadRuntimeConfig()
+		cfg, err := loadRuntimeConfig()
 		if err != nil {
 			return err
 		}
-		service := newPostService(host, token, app.stdin, app.stderr)
+		service := newPostService(cfg.Host, cfg.Token, app.stdin, app.stderr)
 		return app.runExport(ctx, service, args)
 	case "rm":
-		host, token, _, err := loadRuntimeConfig()
+		cfg, err := loadRuntimeConfig()
 		if err != nil {
 			return err
 		}
-		service := newPostService(host, token, app.stdin, app.stderr)
+		service := newPostService(cfg.Host, cfg.Token, app.stdin, app.stderr)
 		return app.runRemove(ctx, service, args)
 	case "topic":
-		host, token, _, err := loadRuntimeConfig()
+		cfg, err := loadRuntimeConfig()
 		if err != nil {
 			return err
 		}
-		service := newPostService(host, token, app.stdin, app.stderr)
+		service := newPostService(cfg.Host, cfg.Token, app.stdin, app.stderr)
 		return app.runTopic(ctx, service, args)
 	case "help", "-h", "--help":
 		_, _ = io.WriteString(app.stdout, helpText)
@@ -99,20 +106,20 @@ func (app *App) Run(ctx context.Context, args []string) error {
 	}
 }
 
-func loadRuntimeConfig() (string, string, string, error) {
+func loadRuntimeConfig() (config.Config, error) {
 	cfg, err := config.Load()
 	if err != nil {
-		return "", "", "", err
+		return config.Config{}, err
 	}
 
 	if cfg.Host == "" || cfg.Token == "" {
-		return "", "", cfg.ConfigPath, fmt.Errorf(
+		return config.Config{}, fmt.Errorf(
 			"POST_HOST and POST_TOKEN must be set via environment variables or config file (%s)",
 			cfg.ConfigPath,
 		)
 	}
 
-	return cfg.Host, cfg.Token, cfg.ConfigPath, nil
+	return cfg, nil
 }
 
 func newPostService(host string, token string, stdin *os.File, stderr io.Writer) *post.Service {

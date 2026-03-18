@@ -28,6 +28,7 @@ Environment variables:
 
 - `POST_HOST`
 - `POST_TOKEN`
+- `POST_PUB_TOPIC` for `post pub`
 - `POST_CONFIG` to override the config file path
 
 Default config file path:
@@ -41,7 +42,8 @@ Config file format:
 ```json
 {
   "host": "https://example.com",
-  "token": "your-token"
+  "token": "your-token",
+  "pub_topic": "notes"
 }
 ```
 
@@ -68,6 +70,7 @@ Shortcut commands:
 - `post md`
 - `post qr`
 - `post file`
+- `post pub`
 - `post html`
 - `post text`
 - `post url`
@@ -91,6 +94,15 @@ For shortcut commands, automatic clipboard read/write is enabled by default. Pas
 
 It does not read from stdin or clipboard.
 
+`post pub` accepts a single Markdown file path only. It uploads with `md2html`, reads YAML front matter, and infers:
+
+- `title` from `title`, then first H1, then file name
+- `slug` from `slug`
+- `created` from `created`, then `date`, then current time
+- `topic` from `POST_PUB_TOPIC`, then config `pub_topic`
+
+`post pub` fails when no topic source is configured.
+
 Create-capable commands also support:
 
 - `--type <mode>` to set the request type
@@ -112,6 +124,7 @@ echo "piped text" | post
 
 post md -f README.md
 echo '# Hello' | post md
+post pub ./note.md
 post qr https://example.com
 post html '<h1>Hello</h1>'
 post text

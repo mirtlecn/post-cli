@@ -157,6 +157,12 @@ func TestShouldPrependNewForCompletion(t *testing.T) {
 	}
 }
 
+func TestShouldPrependNewForPub(t *testing.T) {
+	if shouldPrependNew([]string{"pub"}) {
+		t.Fatal("did not expect prepend for pub")
+	}
+}
+
 func TestRunCompletionDoesNotRequireConfig(t *testing.T) {
 	var stdout bytes.Buffer
 	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{}, BuildInfo{})
@@ -223,7 +229,7 @@ func TestBashCompletionIncludesClipboardFlagsAndFilePathCompletion(t *testing.T)
 	if !strings.Contains(output, "--read-clipboard") || !strings.Contains(output, "--write-clipboard") {
 		t.Fatalf("clipboard flags missing in bash completion: %q", output)
 	}
-	if !strings.Contains(output, "--type") || !strings.Contains(output, "--created") || !strings.Contains(output, "topic version completion help") {
+	if !strings.Contains(output, "--type") || !strings.Contains(output, "--created") || !strings.Contains(output, "--no-confirm") || !strings.Contains(output, "pub url html qr ls export rm topic version completion help") {
 		t.Fatalf("type/topic completion missing in bash completion: %q", output)
 	}
 	if !strings.Contains(output, "_post_topic_names()") || !strings.Contains(output, "-p|--topic)") {
@@ -264,7 +270,7 @@ func TestPowerShellCompletionIncludesClipboardFlagsAndFilePathCompletion(t *test
 	if !strings.Contains(output, "--read-clipboard") || !strings.Contains(output, "--write-clipboard") {
 		t.Fatalf("clipboard flags missing in powershell completion: %q", output)
 	}
-	if !strings.Contains(output, "--type") || !strings.Contains(output, "--created") || !strings.Contains(output, "$topicSubcommands = @('new', 'ls', 'refresh', 'rm')") {
+	if !strings.Contains(output, "--type") || !strings.Contains(output, "--created") || !strings.Contains(output, "--no-confirm") || !strings.Contains(output, "'pub'") || !strings.Contains(output, "$topicSubcommands = @('new', 'ls', 'refresh', 'rm')") {
 		t.Fatalf("type/topic completion missing in powershell completion: %q", output)
 	}
 	if !strings.Contains(output, "function Get-PostTopicNames") || !strings.Contains(output, "$previous -in @('-p', '--topic')") {
@@ -292,7 +298,7 @@ func TestCompletionPrioritizesFrequentCommands(t *testing.T) {
 	if !strings.Contains(output, "--read-clipboard") || !strings.Contains(output, "--write-clipboard") {
 		t.Fatalf("clipboard flags missing in zsh completion: %q", output)
 	}
-	if !strings.Contains(output, "'topic:Manage topics'") || !strings.Contains(output, "--type") || !strings.Contains(output, "--created") {
+	if !strings.Contains(output, "'topic:Manage topics'") || !strings.Contains(output, "'pub:Publish Markdown file with inferred metadata'") || !strings.Contains(output, "--type") || !strings.Contains(output, "--created") || !strings.Contains(output, "--no-confirm") {
 		t.Fatalf("type/topic completion missing in zsh completion: %q", output)
 	}
 	if !strings.Contains(output, "_post_topic_names()") || !strings.Contains(output, ":topic:_post_topic_names") {
@@ -336,7 +342,7 @@ func TestHelpDoesNotRequireConfig(t *testing.T) {
 	if !strings.Contains(stdout.String(), "--read-clipboard") || !strings.Contains(stdout.String(), "post new -r") {
 		t.Fatalf("help output missing clipboard usage: %q", stdout.String())
 	}
-	if !strings.Contains(stdout.String(), "post topic new <topic>") || !strings.Contains(stdout.String(), "post topic refresh <topic>") || !strings.Contains(stdout.String(), "--type <mode>") || !strings.Contains(stdout.String(), "--created <time>") {
+	if !strings.Contains(stdout.String(), "post topic new <topic>") || !strings.Contains(stdout.String(), "post pub [opts] <file.md>") || !strings.Contains(stdout.String(), "--type <mode>") || !strings.Contains(stdout.String(), "--created <time>") || !strings.Contains(stdout.String(), "-y, --no-confirm") || !strings.Contains(stdout.String(), "POST_PUB_TOPIC") {
 		t.Fatalf("help output missing topic/type usage: %q", stdout.String())
 	}
 }

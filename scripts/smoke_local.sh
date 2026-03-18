@@ -17,6 +17,9 @@ TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT INT TERM
 
 SAMPLE_FILE="$TMP_DIR/sample.txt"
+PUB_FILE="$TMP_DIR/pub.md"
+PUB_HEADING_FILE="$TMP_DIR/pub-heading.md"
+PUB_INVALID_SLUG_FILE="$TMP_DIR/pub-invalid-slug.md"
 CONFIG_FILE="$TMP_DIR/config.json"
 PREFIX="smoke-$(date +%s)"
 TOPIC_NAME="$PREFIX-topic"
@@ -24,6 +27,28 @@ TOPIC_EXPORT_NAME="$PREFIX-topic-export"
 TOPIC_VIA_NEW_NAME="$PREFIX-topic-via-new"
 
 printf 'file payload\n' > "$SAMPLE_FILE"
+cat > "$PUB_FILE" <<EOF
+---
+title: Smoke Pub Title
+slug: $PREFIX-pub
+created: 2026-03-01
+---
+
+# Ignored Heading
+EOF
+cat > "$PUB_HEADING_FILE" <<'EOF'
+
+# Heading Pub Title
+
+content
+EOF
+cat > "$PUB_INVALID_SLUG_FILE" <<'EOF'
+---
+slug: bad slug ?
+---
+
+# Invalid Slug Title
+EOF
 cat > "$CONFIG_FILE" <<EOF
 {"host":"$POST_HOST","token":"$POST_TOKEN"}
 EOF
@@ -94,6 +119,10 @@ run_success "shortcut-url" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" .
 run_success "shortcut-file-positional" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y -s "$PREFIX-shortcut-file" "$SAMPLE_FILE"
 run_success "shortcut-file-flag" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y -s "$PREFIX-shortcut-file-flag" -f "$SAMPLE_FILE"
 run_success "shortcut-file-created-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y -x --created "2026-03-01" -s "$PREFIX-shortcut-file-created" "$SAMPLE_FILE"
+run_success "pub-basic" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" POST_PUB_TOPIC="$TOPIC_NAME" ./post pub -y "$PUB_FILE"
+run_success "pub-title-from-frontmatter" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$TOPIC_NAME/$PREFIX-pub"
+run_success "pub-title-from-heading" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" POST_PUB_TOPIC="$TOPIC_NAME" ./post pub -y -s "$PREFIX-pub-heading" "$PUB_HEADING_FILE"
+run_success "pub-created-auto" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$TOPIC_NAME/$PREFIX-pub-heading"
 run_success "shortcut-ttl-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post text -y -x -s "$PREFIX-shortcut-ttl" "shortcut ttl"
 run_success "shortcut-ttl-override" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post text -y -x -t 60 -s "$PREFIX-shortcut-ttl-override" "shortcut ttl override"
 run_success "ls-one" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$PREFIX-text"
@@ -123,6 +152,8 @@ run_failure "topic-unknown-command" env POST_HOST="$POST_HOST" POST_TOKEN="$POST
 run_failure "shortcut-file-missing-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y
 run_failure "shortcut-file-read-clipboard" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y -r -f "$SAMPLE_FILE"
 run_failure "shortcut-file-conflicting-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y -f "$SAMPLE_FILE" "$SAMPLE_FILE"
+run_failure "pub-missing-topic" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" POST_PUB_TOPIC= ./post pub -y "$PUB_HEADING_FILE"
+run_failure "pub-invalid-slug" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" POST_PUB_TOPIC="$TOPIC_NAME" ./post pub -y "$PUB_INVALID_SLUG_FILE"
 run_failure "unknown-command" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post oops
 run_failure "unknown-option" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -z text
 run_failure "invalid-ttl" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -t nope text

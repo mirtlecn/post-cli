@@ -11,13 +11,15 @@ import (
 const configFileName = "config.json"
 
 type FileConfig struct {
-	Host  string `json:"host"`
-	Token string `json:"token"`
+	Host     string `json:"host"`
+	Token    string `json:"token"`
+	PubTopic string `json:"pub_topic"`
 }
 
 type Config struct {
 	Host       string
 	Token      string
+	PubTopic   string
 	ConfigPath string
 }
 
@@ -42,9 +44,15 @@ func Load() (Config, error) {
 		token = strings.TrimSpace(fileConfig.Token)
 	}
 
+	pubTopic := strings.TrimSpace(os.Getenv("POST_PUB_TOPIC"))
+	if pubTopic == "" {
+		pubTopic = strings.TrimSpace(fileConfig.PubTopic)
+	}
+
 	return Config{
 		Host:       host,
 		Token:      token,
+		PubTopic:   pubTopic,
 		ConfigPath: filePath,
 	}, nil
 }
