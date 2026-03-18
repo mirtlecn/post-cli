@@ -20,7 +20,7 @@ type APIClient interface {
 	PostJSON(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error)
 	Get(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error)
 	Delete(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error)
-	UploadFile(ctx context.Context, method string, filePath string, slug string, title string, topic string, ttl *int, export bool) ([]byte, error)
+	UploadFile(ctx context.Context, method string, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error)
 }
 
 type Service struct {
@@ -34,6 +34,7 @@ type NewOptions struct {
 	Slug              string
 	Title             string
 	Topic             string
+	Created           string
 	TTL               *int
 	SkipConfirm       bool
 	ReadClipboard     bool
@@ -108,17 +109,19 @@ func (service *Service) New(ctx context.Context, options NewOptions) (Result, er
 			options.Slug,
 			options.Title,
 			options.Topic,
+			options.Created,
 			options.TTL,
 			options.Export,
 		)
 	} else {
 		payload := api.JSONRequest{
-			Path:  options.Slug,
-			URL:   content,
-			Title: options.Title,
-			Topic: options.Topic,
-			TTL:   options.TTL,
-			Type:  requestType,
+			Path:    options.Slug,
+			URL:     content,
+			Title:   options.Title,
+			Topic:   options.Topic,
+			Created: options.Created,
+			TTL:     options.TTL,
+			Type:    requestType,
 		}
 		responseBody, err = service.client.PostJSON(ctx, options.Method, payload, options.Export)
 	}
@@ -378,6 +381,9 @@ func writeConfirmPreview(writer io.Writer, label string, content string, options
 	}
 	if options.TTL != nil {
 		writeConfirmField(writer, "ttl", fmt.Sprintf("%d min", *options.TTL))
+	}
+	if options.Created != "" {
+		writeConfirmField(writer, "created", options.Created)
 	}
 	if typeLabel := formatConfirmType(options.Type, requestType); typeLabel != "" {
 		writeConfirmField(writer, "type", typeLabel)

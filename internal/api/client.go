@@ -21,12 +21,13 @@ type Client struct {
 }
 
 type JSONRequest struct {
-	Path  string `json:"path,omitempty"`
-	URL   string `json:"url,omitempty"`
-	Title string `json:"title,omitempty"`
-	Topic string `json:"topic,omitempty"`
-	TTL   *int   `json:"ttl,omitempty"`
-	Type  string `json:"type,omitempty"`
+	Path    string `json:"path,omitempty"`
+	URL     string `json:"url,omitempty"`
+	Title   string `json:"title,omitempty"`
+	Topic   string `json:"topic,omitempty"`
+	Created string `json:"created,omitempty"`
+	TTL     *int   `json:"ttl,omitempty"`
+	Type    string `json:"type,omitempty"`
 }
 
 type APIErrorPayload struct {
@@ -114,6 +115,7 @@ func (client *Client) UploadFile(
 	slug string,
 	title string,
 	topic string,
+	created string,
 	ttl *int,
 	export bool,
 ) ([]byte, error) {
@@ -147,6 +149,11 @@ func (client *Client) UploadFile(
 	if topic != "" {
 		if err := writer.WriteField("topic", topic); err != nil {
 			return nil, fmt.Errorf("write topic field: %w", err)
+		}
+	}
+	if created != "" {
+		if err := writer.WriteField("created", created); err != nil {
+			return nil, fmt.Errorf("write created field: %w", err)
 		}
 	}
 	if ttl != nil {

@@ -44,6 +44,13 @@ func parseNewOptions(args []string) (post.NewOptions, error) {
 			}
 			options.Topic = value
 			index = nextIndex
+		case "--created":
+			value, nextIndex, err := nextValue(expandedArgs, index)
+			if err != nil {
+				return options, fmt.Errorf("option %s requires a value", arg)
+			}
+			options.Created = value
+			index = nextIndex
 		case "-s", "--slug":
 			value, nextIndex, err := nextValue(expandedArgs, index)
 			if err != nil {

@@ -34,6 +34,7 @@ Options for 'new':
   -s, --slug <path>              Custom slug/path (default: auto-generated)
   -i, --title <title>            Set item title
   -p, --topic <topic>            Attach item to a topic (requires --title)
+  --created <time>               Set created time and send it to the API
   -t, --ttl <minutes>            Expiration time in minutes (0 means never)
   -u, --update                   Overwrite if slug already exists (uses PUT)
   -y, --no-confirm               Skip confirmation prompt
@@ -57,6 +58,7 @@ Options for shortcut commands:
   -s, --slug <path>              Custom slug/path
   -i, --title <title>            Set item title
   -p, --topic <topic>            Attach item to a topic (requires --title)
+  --created <time>               Set created time and send it to the API
   -t, --ttl <minutes>            Override default 10080-minute expiration
   -u, --update                   Overwrite if slug already exists
   -y, --no-confirm               Skip confirmation prompt
@@ -111,6 +113,7 @@ Examples:
   post topic rm anime
   post new -f ~/notes.txt
   post new -s mycode -f script.sh
+  post new --created "2026-03-01T08:00:00+08:00" "keep original time"
   post new -t 60 "expires in 1 hour"
   post new -t 0 "never expires"
   post new -y "quick note"

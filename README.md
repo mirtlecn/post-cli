@@ -97,14 +97,17 @@ Create-capable commands also support:
 - `--convert <mode>` as an alias of `--type`
 - `-i, --title <title>` to set the item title
 - `-p, --topic <topic>` to attach an item to a topic
+- `--created <time>` to pass the created time to the API
 
 When `--topic` is set, `--title` is required.
+The CLI forwards `--created` as-is and lets the API validate the time format.
 
 ## Examples
 
 ```bash
 post new hello world
 post new -f ./notes.txt
+post new --created "2026-03-01T08:00:00+08:00" "keep original time"
 echo "piped text" | post
 
 post md -f README.md

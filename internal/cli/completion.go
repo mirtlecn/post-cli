@@ -72,14 +72,14 @@ _post_completion() {
 
   case "${command}" in
     new)
-      COMPREPLY=($(compgen -W "-f --file -s --slug -i --title -p --topic -t --ttl -y --no-confirm -u --update -x --export -r --read-clipboard -w --write-clipboard -c --convert --type" -- "${current}"))
+      COMPREPLY=($(compgen -W "-f --file -s --slug -i --title -p --topic --created -t --ttl -y --no-confirm -u --update -x --export -r --read-clipboard -w --write-clipboard -c --convert --type" -- "${current}"))
       ;;
     md|qr|html|text|url)
-      COMPREPLY=($(compgen -W "-f --file -s --slug -i --title -p --topic -t --ttl -y --no-confirm -u --update -x --export -r --read-clipboard -w --write-clipboard" -- "${current}"))
+      COMPREPLY=($(compgen -W "-f --file -s --slug -i --title -p --topic --created -t --ttl -y --no-confirm -u --update -x --export -r --read-clipboard -w --write-clipboard" -- "${current}"))
       ;;
     file)
       if [[ "${current}" == -* ]]; then
-        COMPREPLY=($(compgen -W "-f --file -s --slug -i --title -p --topic -t --ttl -y --no-confirm -u --update -x --export -w --write-clipboard" -- "${current}"))
+        COMPREPLY=($(compgen -W "-f --file -s --slug -i --title -p --topic --created -t --ttl -y --no-confirm -u --update -x --export -w --write-clipboard" -- "${current}"))
       else
         COMPREPLY=($(compgen -f -- "${current}"))
       fi
@@ -159,6 +159,7 @@ _post() {
     '(-s --slug)'{-s,--slug}'[Custom slug/path]:slug: '
     '(-i --title)'{-i,--title}'[Set item title]:title: '
     '(-p --topic)'{-p,--topic}'[Attach item to a topic]:topic:_post_topic_names'
+    '(--created)'--created'[Set created time and send it to the API]:time: '
     '(-t --ttl)'{-t,--ttl}'[Expiration time in minutes (0 means never)]:minutes: '
     '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]'
     '(-u --update)'{-u,--update}'[Overwrite if slug already exists]'
@@ -175,6 +176,7 @@ _post() {
     '(-s --slug)'{-s,--slug}'[Custom slug/path]:slug: '
     '(-i --title)'{-i,--title}'[Set item title]:title: '
     '(-p --topic)'{-p,--topic}'[Attach item to a topic]:topic:_post_topic_names'
+    '(--created)'--created'[Set created time and send it to the API]:time: '
     '(-t --ttl)'{-t,--ttl}'[Override expiration time in minutes]:minutes: '
     '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]'
     '(-u --update)'{-u,--update}'[Overwrite if slug already exists]'
@@ -201,6 +203,7 @@ _post() {
         '(-s --slug)'{-s,--slug}'[Custom slug/path]:slug: ' \
         '(-i --title)'{-i,--title}'[Set item title]:title: ' \
         '(-p --topic)'{-p,--topic}'[Attach item to a topic]:topic:_post_topic_names' \
+        '(--created)'--created'[Set created time and send it to the API]:time: ' \
         '(-t --ttl)'{-t,--ttl}'[Override expiration time in minutes]:minutes: ' \
         '(-u --update)'{-u,--update}'[Overwrite if slug already exists]' \
         '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]' \
@@ -291,9 +294,9 @@ const powerShellCompletion = `Register-ArgumentCompleter -Native -CommandName po
 
     $tokens = $commandAst.CommandElements | ForEach-Object { $_.Extent.Text }
     $subcommands = @('new', 'text', 'md', 'file', 'url', 'html', 'qr', 'ls', 'export', 'rm', 'topic', 'version', 'completion', 'help')
-    $newOptions = @('-f', '--file', '-s', '--slug', '-i', '--title', '-p', '--topic', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-r', '--read-clipboard', '-w', '--write-clipboard', '-c', '--convert', '--type')
-    $shortcutOptions = @('-f', '--file', '-s', '--slug', '-i', '--title', '-p', '--topic', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-r', '--read-clipboard', '-w', '--write-clipboard')
-    $fileOptions = @('-f', '--file', '-s', '--slug', '-i', '--title', '-p', '--topic', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-w', '--write-clipboard')
+    $newOptions = @('-f', '--file', '-s', '--slug', '-i', '--title', '-p', '--topic', '--created', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-r', '--read-clipboard', '-w', '--write-clipboard', '-c', '--convert', '--type')
+    $shortcutOptions = @('-f', '--file', '-s', '--slug', '-i', '--title', '-p', '--topic', '--created', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-r', '--read-clipboard', '-w', '--write-clipboard')
+    $fileOptions = @('-f', '--file', '-s', '--slug', '-i', '--title', '-p', '--topic', '--created', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-w', '--write-clipboard')
     $lsOptions = @('-x', '--export')
     $topicSubcommands = @('new', 'ls', 'refresh', 'rm')
     $shells = @('bash', 'zsh', 'powershell')

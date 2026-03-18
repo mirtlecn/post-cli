@@ -3,8 +3,12 @@ package api
 import (
 	"context"
 	"io"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -33,6 +37,9 @@ func TestPostJSONAddsHeadersAndBody(t *testing.T) {
 		if !strings.Contains(string(body), `"topic":"notes"`) {
 			t.Fatalf("unexpected body: %s", string(body))
 		}
+		if !strings.Contains(string(body), `"created":"2026-03-01T08:00:00+08:00"`) {
+			t.Fatalf("unexpected body: %s", string(body))
+		}
 		writer.WriteHeader(http.StatusOK)
 		_, _ = writer.Write([]byte(`{"surl":"https://sho.rt/demo"}`))
 	}))
@@ -40,13 +47,74 @@ func TestPostJSONAddsHeadersAndBody(t *testing.T) {
 
 	client := NewClient(server.URL, "token", server.Client())
 	_, err := client.PostJSON(context.Background(), http.MethodPost, JSONRequest{
-		Path:  "demo",
-		URL:   "hello",
-		Title: "Demo",
-		Topic: "notes",
+		Path:    "demo",
+		URL:     "hello",
+		Title:   "Demo",
+		Topic:   "notes",
+		Created: "2026-03-01T08:00:00+08:00",
 	}, true)
 	if err != nil {
 		t.Fatalf("PostJSON returned error: %v", err)
+	}
+}
+
+func TestUploadFileSendsCreatedField(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "sample.txt")
+	if err := os.WriteFile(filePath, []byte("sample"), 0o644); err != nil {
+		t.Fatalf("write sample file: %v", err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", request.Method)
+		}
+
+		mediaType, params, err := mime.ParseMediaType(request.Header.Get("Content-Type"))
+		if err != nil {
+			t.Fatalf("parse media type: %v", err)
+		}
+		if mediaType != "multipart/form-data" {
+			t.Fatalf("unexpected media type: %s", mediaType)
+		}
+
+		reader := multipart.NewReader(request.Body, params["boundary"])
+		values := map[string]string{}
+		for {
+			part, err := reader.NextPart()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Fatalf("read part: %v", err)
+			}
+			body, err := io.ReadAll(part)
+			if err != nil {
+				t.Fatalf("read part body: %v", err)
+			}
+			values[part.FormName()] = string(body)
+		}
+
+		if values["path"] != "demo" || values["title"] != "Demo" || values["topic"] != "notes" {
+			t.Fatalf("unexpected fields: %#v", values)
+		}
+		if values["created"] != "2026-03-01" {
+			t.Fatalf("unexpected created field: %#v", values)
+		}
+		if values["ttl"] != "15" {
+			t.Fatalf("unexpected ttl field: %#v", values)
+		}
+
+		writer.WriteHeader(http.StatusOK)
+		_, _ = writer.Write([]byte(`{"surl":"https://sho.rt/file"}`))
+	}))
+	defer server.Close()
+
+	ttl := 15
+	client := NewClient(server.URL, "token", server.Client())
+	_, err := client.UploadFile(context.Background(), http.MethodPost, filePath, "demo", "Demo", "notes", "2026-03-01", &ttl, false)
+	if err != nil {
+		t.Fatalf("UploadFile returned error: %v", err)
 	}
 }
 

@@ -13,7 +13,7 @@ import (
 )
 
 func TestParseNewOptions(t *testing.T) {
-	options, err := parseNewOptions([]string{"-s", "demo", "-t", "15", "-u", "-r", "-w", "-x", "-c", "text", "hello", "world"})
+	options, err := parseNewOptions([]string{"-s", "demo", "--created", "2026-03-01T08:00:00+08:00", "-t", "15", "-u", "-r", "-w", "-x", "-c", "text", "hello", "world"})
 	if err != nil {
 		t.Fatalf("parseNewOptions returned error: %v", err)
 	}
@@ -22,6 +22,9 @@ func TestParseNewOptions(t *testing.T) {
 	}
 	if options.TTL == nil || *options.TTL != 15 {
 		t.Fatalf("unexpected ttl: %v", options.TTL)
+	}
+	if options.Created != "2026-03-01T08:00:00+08:00" {
+		t.Fatalf("unexpected created: %s", options.Created)
 	}
 	if options.Type != "text" {
 		t.Fatalf("unexpected type: %s", options.Type)
@@ -220,7 +223,7 @@ func TestBashCompletionIncludesClipboardFlagsAndFilePathCompletion(t *testing.T)
 	if !strings.Contains(output, "--read-clipboard") || !strings.Contains(output, "--write-clipboard") {
 		t.Fatalf("clipboard flags missing in bash completion: %q", output)
 	}
-	if !strings.Contains(output, "--type") || !strings.Contains(output, "topic version completion help") {
+	if !strings.Contains(output, "--type") || !strings.Contains(output, "--created") || !strings.Contains(output, "topic version completion help") {
 		t.Fatalf("type/topic completion missing in bash completion: %q", output)
 	}
 	if !strings.Contains(output, "_post_topic_names()") || !strings.Contains(output, "-p|--topic)") {
@@ -261,7 +264,7 @@ func TestPowerShellCompletionIncludesClipboardFlagsAndFilePathCompletion(t *test
 	if !strings.Contains(output, "--read-clipboard") || !strings.Contains(output, "--write-clipboard") {
 		t.Fatalf("clipboard flags missing in powershell completion: %q", output)
 	}
-	if !strings.Contains(output, "--type") || !strings.Contains(output, "$topicSubcommands = @('new', 'ls', 'refresh', 'rm')") {
+	if !strings.Contains(output, "--type") || !strings.Contains(output, "--created") || !strings.Contains(output, "$topicSubcommands = @('new', 'ls', 'refresh', 'rm')") {
 		t.Fatalf("type/topic completion missing in powershell completion: %q", output)
 	}
 	if !strings.Contains(output, "function Get-PostTopicNames") || !strings.Contains(output, "$previous -in @('-p', '--topic')") {
@@ -289,7 +292,7 @@ func TestCompletionPrioritizesFrequentCommands(t *testing.T) {
 	if !strings.Contains(output, "--read-clipboard") || !strings.Contains(output, "--write-clipboard") {
 		t.Fatalf("clipboard flags missing in zsh completion: %q", output)
 	}
-	if !strings.Contains(output, "'topic:Manage topics'") || !strings.Contains(output, "--type") {
+	if !strings.Contains(output, "'topic:Manage topics'") || !strings.Contains(output, "--type") || !strings.Contains(output, "--created") {
 		t.Fatalf("type/topic completion missing in zsh completion: %q", output)
 	}
 	if !strings.Contains(output, "_post_topic_names()") || !strings.Contains(output, ":topic:_post_topic_names") {
@@ -333,7 +336,7 @@ func TestHelpDoesNotRequireConfig(t *testing.T) {
 	if !strings.Contains(stdout.String(), "--read-clipboard") || !strings.Contains(stdout.String(), "post new -r") {
 		t.Fatalf("help output missing clipboard usage: %q", stdout.String())
 	}
-	if !strings.Contains(stdout.String(), "post topic new <topic>") || !strings.Contains(stdout.String(), "post topic refresh <topic>") || !strings.Contains(stdout.String(), "--type <mode>") {
+	if !strings.Contains(stdout.String(), "post topic new <topic>") || !strings.Contains(stdout.String(), "post topic refresh <topic>") || !strings.Contains(stdout.String(), "--type <mode>") || !strings.Contains(stdout.String(), "--created <time>") {
 		t.Fatalf("help output missing topic/type usage: %q", stdout.String())
 	}
 }
@@ -354,7 +357,7 @@ func (client *stubCreateClient) Delete(context.Context, api.JSONRequest, bool) (
 	panic("unexpected Delete call")
 }
 
-func (client *stubCreateClient) UploadFile(context.Context, string, string, string, string, string, *int, bool) ([]byte, error) {
+func (client *stubCreateClient) UploadFile(context.Context, string, string, string, string, string, string, *int, bool) ([]byte, error) {
 	panic("unexpected UploadFile call")
 }
 

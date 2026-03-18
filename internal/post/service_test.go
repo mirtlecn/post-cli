@@ -17,7 +17,7 @@ type stubClient struct {
 	postJSONFunc   func(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error)
 	getFunc        func(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error)
 	deleteFunc     func(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error)
-	uploadFileFunc func(ctx context.Context, method string, filePath string, slug string, title string, topic string, ttl *int, export bool) ([]byte, error)
+	uploadFileFunc func(ctx context.Context, method string, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error)
 }
 
 func (client *stubClient) PostJSON(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
@@ -32,8 +32,8 @@ func (client *stubClient) Delete(ctx context.Context, payload api.JSONRequest, e
 	return client.deleteFunc(ctx, payload, export)
 }
 
-func (client *stubClient) UploadFile(ctx context.Context, method string, filePath string, slug string, title string, topic string, ttl *int, export bool) ([]byte, error) {
-	return client.uploadFileFunc(ctx, method, filePath, slug, title, topic, ttl, export)
+func (client *stubClient) UploadFile(ctx context.Context, method string, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error) {
+	return client.uploadFileFunc(ctx, method, filePath, slug, title, topic, created, ttl, export)
 }
 
 type stubClipboard struct {
@@ -71,6 +71,9 @@ func TestNewUsesArguments(t *testing.T) {
 			if payload.URL != "hello world" {
 				t.Fatalf("unexpected url: %s", payload.URL)
 			}
+			if payload.Created != "2026-03-01T08:00:00+08:00" {
+				t.Fatalf("unexpected created: %s", payload.Created)
+			}
 			if export {
 				t.Fatal("unexpected export flag")
 			}
@@ -80,6 +83,7 @@ func TestNewUsesArguments(t *testing.T) {
 
 	result, err := service.New(context.Background(), NewOptions{
 		Args:        []string{"hello", "world"},
+		Created:     "2026-03-01T08:00:00+08:00",
 		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    true,
@@ -134,6 +138,7 @@ func TestNewWritesAlignedConfirmationPreview(t *testing.T) {
 	result, err := service.New(context.Background(), NewOptions{
 		Method:        http.MethodPost,
 		TTL:           &ttl,
+		Created:       "2026-03-01 08:00:00",
 		Type:          "text",
 		StdinTTY:      true,
 		ReadClipboard: true,
@@ -149,7 +154,7 @@ func TestNewWritesAlignedConfirmationPreview(t *testing.T) {
 		t.Fatalf("unexpected stderr result: %q", result.Stderr)
 	}
 
-	expected := "content      clipboard text\nttl          10080 min\ntype         text\n\n"
+	expected := "content      clipboard text\nttl          10080 min\ncreated      2026-03-01 08:00:00\ntype         text\n\n"
 	if stderr.String() != expected {
 		t.Fatalf("unexpected preview: %q", stderr.String())
 	}
@@ -404,7 +409,7 @@ func TestNewUploadsFile(t *testing.T) {
 	}
 
 	service := NewService(&stubClient{
-		uploadFileFunc: func(_ context.Context, method string, uploadPath string, slug string, title string, topic string, ttl *int, export bool) ([]byte, error) {
+		uploadFileFunc: func(_ context.Context, method string, uploadPath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error) {
 			if method != http.MethodPut {
 				t.Fatalf("unexpected method: %s", method)
 			}
@@ -419,6 +424,9 @@ func TestNewUploadsFile(t *testing.T) {
 			}
 			if topic != "demo-topic" {
 				t.Fatalf("unexpected topic: %s", topic)
+			}
+			if created != "2026-03-01" {
+				t.Fatalf("unexpected created: %s", created)
 			}
 			if ttl == nil || *ttl != 60 {
 				t.Fatalf("unexpected ttl: %v", ttl)
@@ -439,6 +447,7 @@ func TestNewUploadsFile(t *testing.T) {
 		Slug:        "demo",
 		Title:       "Demo title",
 		Topic:       "demo-topic",
+		Created:     "2026-03-01",
 		TTL:         &ttl,
 		SkipConfirm: true,
 		StdinTTY:    true,
