@@ -97,7 +97,7 @@ It does not read from stdin or clipboard.
 `post pub` accepts a single Markdown file path only. It uploads with `md2html`, reads YAML front matter, and infers:
 
 - `title` from `title`, then first H1, then file name
-- `slug` from `slug`
+- `slug` from `slug`, then generated from the final title plus the current Unix time
 - `created` from `created`, then `date`, then current time
 - `topic` from `POST_PUB_TOPIC`, then config `pub_topic`
 

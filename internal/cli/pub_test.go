@@ -11,6 +11,7 @@ import (
 
 	"github.com/mirtle/post-cli/internal/api"
 	"github.com/mirtle/post-cli/internal/config"
+	"github.com/mirtle/post-cli/internal/metadata"
 	"github.com/mirtle/post-cli/internal/post"
 )
 
@@ -144,6 +145,40 @@ slug: fm-slug
 	}
 }
 
+func TestRunPubGeneratesSlugFromFinalTitleAndUnixTime(t *testing.T) {
+	originalNowFunc := nowFunc
+	nowFunc = func() time.Time {
+		return time.Unix(1760000000, 0).UTC()
+	}
+	t.Cleanup(func() {
+		nowFunc = originalNowFunc
+	})
+
+	filePath := writeMarkdownTestFile(t, "# Hello World\n")
+	service := newStubPubService(t, func(payload api.JSONRequest) {
+		expectedSlug := metadata.GenerateSlugFromTitle("Hello World", 1760000000)
+		if payload.Path != expectedSlug {
+			t.Fatalf("unexpected payload path: %#v", payload)
+		}
+		if payload.Title != "Hello World" {
+			t.Fatalf("unexpected payload title: %#v", payload)
+		}
+		if payload.Created != "2025-10-09T08:53:20Z" {
+			t.Fatalf("unexpected created: %#v", payload)
+		}
+	}, nil)
+
+	app := NewApp(os.Stdin, &bytes.Buffer{}, &bytes.Buffer{}, BuildInfo{})
+	err := app.runPub(context.Background(), service, []string{"-y", filePath}, false, "https://example.com", config.Config{
+		Host:     "https://example.com",
+		Token:    "demo",
+		PubTopic: "quick-notes",
+	})
+	if err != nil {
+		t.Fatalf("runPub returned error: %v", err)
+	}
+}
+
 func TestRunPubAllowsOverrides(t *testing.T) {
 	filePath := writeMarkdownTestFile(t, "# Heading Title\n")
 	service := newStubPubService(t, func(payload api.JSONRequest) {
@@ -163,6 +198,20 @@ func TestRunPubAllowsOverrides(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("runPub returned error: %v", err)
+	}
+}
+
+func TestGenerateSlugFromTitleUsesLowercaseAndUnixTime(t *testing.T) {
+	got := metadata.GenerateSlugFromTitle("Hello World", 1760000000)
+	if got != "hello-world-1760000000" {
+		t.Fatalf("unexpected slug: %s", got)
+	}
+}
+
+func TestGenerateSlugFromTitleFallsBackWhenTitleIsEmpty(t *testing.T) {
+	got := metadata.GenerateSlugFromTitle("", 1760000000)
+	if got != "post-1760000000" {
+		t.Fatalf("unexpected slug: %s", got)
 	}
 }
 

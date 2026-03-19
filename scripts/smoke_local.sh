@@ -19,6 +19,7 @@ trap 'rm -rf "$TMP_DIR"' EXIT INT TERM
 SAMPLE_FILE="$TMP_DIR/sample.txt"
 PUB_FILE="$TMP_DIR/pub.md"
 PUB_HEADING_FILE="$TMP_DIR/pub-heading.md"
+PUB_AUTO_SLUG_FILE="$TMP_DIR/pub-auto-slug.md"
 PUB_INVALID_SLUG_FILE="$TMP_DIR/pub-invalid-slug.md"
 CONFIG_FILE="$TMP_DIR/config.json"
 PREFIX="smoke-$(date +%s)"
@@ -39,6 +40,12 @@ EOF
 cat > "$PUB_HEADING_FILE" <<'EOF'
 
 # Heading Pub Title
+
+content
+EOF
+cat > "$PUB_AUTO_SLUG_FILE" <<'EOF'
+
+# Smoke Auto Slug Title
 
 content
 EOF
@@ -73,6 +80,17 @@ run_failure() {
   else
     printf 'PASS\t%s\t%s\n' "$name" "$output"
   fi
+}
+
+assert_contains() {
+  haystack="$1"
+  needle="$2"
+  if printf '%s' "$haystack" | grep -F -- "$needle" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  printf 'FAIL\tassert-contains\texpected output to contain: %s\n' "$needle"
+  exit 1
 }
 
 run_success "help" ./post help
@@ -123,6 +141,12 @@ run_success "pub-basic" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" POST
 run_success "pub-title-from-frontmatter" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$TOPIC_NAME/$PREFIX-pub"
 run_success "pub-title-from-heading" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" POST_PUB_TOPIC="$TOPIC_NAME" ./post pub -y -s "$PREFIX-pub-heading" "$PUB_HEADING_FILE"
 run_success "pub-created-auto" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$TOPIC_NAME/$PREFIX-pub-heading"
+auto_slug_output=$(env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" POST_PUB_TOPIC="$TOPIC_NAME" ./post pub -y "$PUB_AUTO_SLUG_FILE" 2>&1) || {
+  printf 'FAIL\tpub-auto-slug\t%s\n' "$auto_slug_output"
+  exit 1
+}
+printf 'PASS\tpub-auto-slug\t%s\n' "$auto_slug_output"
+assert_contains "$auto_slug_output" "$TOPIC_NAME/smoke-auto-slug-title-"
 run_success "shortcut-ttl-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post text -y -x -s "$PREFIX-shortcut-ttl" "shortcut ttl"
 run_success "shortcut-ttl-override" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post text -y -x -t 60 -s "$PREFIX-shortcut-ttl-override" "shortcut ttl override"
 run_success "ls-one" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$PREFIX-text"

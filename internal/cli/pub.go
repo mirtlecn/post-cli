@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/mirtle/post-cli/internal/config"
+	"github.com/mirtle/post-cli/internal/metadata"
 	"github.com/mirtle/post-cli/internal/post"
 	"gopkg.in/yaml.v3"
 )
@@ -107,7 +108,7 @@ func (app *App) runPub(
 		return err
 	}
 
-	metadata, err := readMarkdownMetadata(options.FilePath)
+	markdownMetadata, err := readMarkdownMetadata(options.FilePath)
 	if err != nil {
 		return err
 	}
@@ -119,15 +120,18 @@ func (app *App) runPub(
 
 	title := options.Title
 	if title == "" {
-		title = metadata.Title
+		title = markdownMetadata.Title
 	}
 
 	slug := options.Slug
 	if slug == "" {
-		slug = metadata.Slug
+		slug = markdownMetadata.Slug
+	}
+	if slug == "" {
+		slug = metadata.GenerateSlugFromTitle(title, nowFunc().Unix())
 	}
 
-	created := metadata.Created
+	created := markdownMetadata.Created
 	if created == "" {
 		created = nowFunc().Format(time.RFC3339)
 	}

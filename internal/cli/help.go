@@ -78,7 +78,7 @@ Pub metadata inference:
   topic                          POST_PUB_TOPIC -> config pub_topic -> fail
   title                          --title -> front matter title -> first H1 -> file name
   created                        front matter created -> front matter date -> current time
-  slug                           --slug -> front matter slug
+  slug                           --slug -> front matter slug -> generated from title + current Unix time
 
 Options for 'topic new' and 'topic refresh':
   -i, --title <title>            Set topic title
