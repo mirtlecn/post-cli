@@ -12,6 +12,7 @@ import (
 	"github.com/mirtle/post-cli/internal/api"
 	"github.com/mirtle/post-cli/internal/clipboard"
 	"github.com/mirtle/post-cli/internal/config"
+	"github.com/mirtle/post-cli/internal/metadata"
 	"github.com/mirtle/post-cli/internal/post"
 )
 
@@ -286,6 +287,12 @@ func (app *App) runCreate(
 	if !stdinTTY {
 		options.SkipConfirm = true
 	}
+
+	resolvedOptions, err := applyAutomaticFileMetadata(options)
+	if err != nil {
+		return err
+	}
+	options = resolvedOptions
 	options.StdinTTY = stdinTTY
 	options.Confirm = func(_ string) (bool, error) {
 		fmt.Fprintf(app.stderr, "%-12s %s\n", "post to", host)
@@ -313,4 +320,32 @@ func (app *App) runCreate(
 		_, _ = io.WriteString(app.stdout, result.Stdout)
 	}
 	return nil
+}
+
+func applyAutomaticFileMetadata(options post.NewOptions) (post.NewOptions, error) {
+	if options.FilePath == "" {
+		return options, nil
+	}
+
+	now := nowFunc()
+	fileMetadata, err := metadata.ReadFileMetadata(options.FilePath, now)
+	if err != nil {
+		return post.NewOptions{}, err
+	}
+
+	if options.Title == "" {
+		options.Title = fileMetadata.Title
+	}
+	if options.Slug == "" {
+		if fileMetadata.Slug != "" {
+			options.Slug = fileMetadata.Slug
+		} else {
+			options.Slug = metadata.GenerateSlugFromTitle(options.Title, now.Unix())
+		}
+	}
+	if options.Created == "" {
+		options.Created = fileMetadata.Created
+	}
+
+	return options, nil
 }

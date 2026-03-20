@@ -17,6 +17,8 @@ TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT INT TERM
 
 SAMPLE_FILE="$TMP_DIR/sample.txt"
+AUTO_TEXT_FILE="$TMP_DIR/auto-note.md"
+AUTO_UPLOAD_FILE="$TMP_DIR/upload-note.txt"
 PUB_FILE="$TMP_DIR/pub.md"
 PUB_HEADING_FILE="$TMP_DIR/pub-heading.md"
 PUB_AUTO_SLUG_FILE="$TMP_DIR/pub-auto-slug.md"
@@ -28,6 +30,8 @@ TOPIC_EXPORT_NAME="$PREFIX-topic-export"
 TOPIC_VIA_NEW_NAME="$PREFIX-topic-via-new"
 
 printf 'file payload\n' > "$SAMPLE_FILE"
+printf '# Auto Text Title\n\nbody\n' > "$AUTO_TEXT_FILE"
+printf 'upload body\n' > "$AUTO_UPLOAD_FILE"
 cat > "$PUB_FILE" <<EOF
 ---
 title: Smoke Pub Title
@@ -59,6 +63,12 @@ EOF
 cat > "$CONFIG_FILE" <<EOF
 {"host":"$POST_HOST","token":"$POST_TOKEN"}
 EOF
+
+TZ=UTC touch -t 202603060708.09 "$SAMPLE_FILE"
+TZ=UTC touch -t 202603070809.10 "$AUTO_TEXT_FILE"
+TZ=UTC touch -t 202603080910.11 "$AUTO_UPLOAD_FILE"
+TZ=UTC touch -t 202603090910.11 "$PUB_HEADING_FILE"
+TZ=UTC touch -t 202603100910.11 "$PUB_AUTO_SLUG_FILE"
 
 run_success() {
   name="$1"
@@ -111,7 +121,23 @@ run_success "new-combined-uyx" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKE
 run_success "new-combined-rw" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -yrw -s "$PREFIX-combined-rw" "combined clipboard flags text"
 run_success "new-topic-text" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -p "$TOPIC_NAME" -i "Topic Note" -s "$TOPIC_NAME/note" "topic text"
 run_success "new-file-content" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -s "$PREFIX-file-content" -f "$SAMPLE_FILE"
+new_auto_text_output=$(env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -x -f "$AUTO_TEXT_FILE" 2>&1) || {
+  printf 'FAIL\tnew-file-auto-metadata\t%s\n' "$new_auto_text_output"
+  exit 1
+}
+printf 'PASS\tnew-file-auto-metadata\t%s\n' "$new_auto_text_output"
+assert_contains "$new_auto_text_output" "\"title\": \"Auto Text Title\""
+assert_contains "$new_auto_text_output" "\"created\": \"2026-03-07T08:09:10Z\""
+assert_contains "$new_auto_text_output" "\"path\": \"auto-text-title-"
 run_success "new-file-upload" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -s "$PREFIX-file-upload" -c file -f "$SAMPLE_FILE"
+auto_upload_output=$(env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y -x "$AUTO_UPLOAD_FILE" 2>&1) || {
+  printf 'FAIL\tshortcut-file-auto-metadata\t%s\n' "$auto_upload_output"
+  exit 1
+}
+printf 'PASS\tshortcut-file-auto-metadata\t%s\n' "$auto_upload_output"
+assert_contains "$auto_upload_output" "\"title\": \"upload-note\""
+assert_contains "$auto_upload_output" "\"created\": \"2026-03-08T09:10:11Z\""
+assert_contains "$auto_upload_output" "\"path\": \"upload-note-"
 run_success "new-topic-file-upload" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y -p "$TOPIC_NAME" -i "Topic File" -s "$TOPIC_NAME/upload" "$SAMPLE_FILE"
 run_success "new-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -x -s "$PREFIX-export" "export text"
 run_success "new-update-initial" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -s "$PREFIX-update" "before update"
@@ -140,13 +166,25 @@ run_success "shortcut-file-created-export" env POST_HOST="$POST_HOST" POST_TOKEN
 run_success "pub-basic" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" POST_PUB_TOPIC="$TOPIC_NAME" ./post pub -y "$PUB_FILE"
 run_success "pub-title-from-frontmatter" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$TOPIC_NAME/$PREFIX-pub"
 run_success "pub-title-from-heading" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" POST_PUB_TOPIC="$TOPIC_NAME" ./post pub -y -s "$PREFIX-pub-heading" "$PUB_HEADING_FILE"
-run_success "pub-created-auto" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$TOPIC_NAME/$PREFIX-pub-heading"
+pub_created_auto_output=$(env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$TOPIC_NAME/$PREFIX-pub-heading" 2>&1) || {
+  printf 'FAIL\tpub-created-auto\t%s\n' "$pub_created_auto_output"
+  exit 1
+}
+printf 'PASS\tpub-created-auto\t%s\n' "$pub_created_auto_output"
+assert_contains "$pub_created_auto_output" "\"created\": \"2026-03-09T09:10:11Z\""
 auto_slug_output=$(env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" POST_PUB_TOPIC="$TOPIC_NAME" ./post pub -y "$PUB_AUTO_SLUG_FILE" 2>&1) || {
   printf 'FAIL\tpub-auto-slug\t%s\n' "$auto_slug_output"
   exit 1
 }
 printf 'PASS\tpub-auto-slug\t%s\n' "$auto_slug_output"
 assert_contains "$auto_slug_output" "$TOPIC_NAME/smoke-auto-slug-title-"
+auto_slug_path=${auto_slug_output#"$POST_HOST/"}
+pub_auto_slug_list_output=$(env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$auto_slug_path" 2>&1) || {
+  printf 'FAIL\tpub-auto-slug-created\t%s\n' "$pub_auto_slug_list_output"
+  exit 1
+}
+printf 'PASS\tpub-auto-slug-created\t%s\n' "$pub_auto_slug_list_output"
+assert_contains "$pub_auto_slug_list_output" "\"created\": \"2026-03-10T09:10:11Z\""
 run_success "shortcut-ttl-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post text -y -x -s "$PREFIX-shortcut-ttl" "shortcut ttl"
 run_success "shortcut-ttl-override" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post text -y -x -t 60 -s "$PREFIX-shortcut-ttl-override" "shortcut ttl override"
 run_success "ls-one" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$PREFIX-text"

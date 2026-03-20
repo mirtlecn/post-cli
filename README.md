@@ -94,11 +94,22 @@ For shortcut commands, automatic clipboard read/write is enabled by default. Pas
 
 It does not read from stdin or clipboard.
 
-`post pub` accepts a single Markdown file path only. It uploads with `md2html`, reads YAML front matter, and infers:
+File-path create commands infer metadata when explicit flags are not provided:
 
 - `title` from `title`, then first H1, then file name
 - `slug` from `slug`, then generated from the final title plus the current Unix time
-- `created` from `created`, then `date`, then current time
+- `created` from `created`, then `date`, then file modified time, then current time
+
+This applies to:
+
+- `post pub <file.md>`
+- `post new -f <path>`
+- `post md|qr|html|text|url -f <path>`
+- `post file <path>`
+- `post file -f <path>`
+
+`post pub` still additionally infers:
+
 - `topic` from `POST_PUB_TOPIC`, then config `pub_topic`
 
 `post pub` fails when no topic source is configured.
