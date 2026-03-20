@@ -223,7 +223,7 @@ Run the local smoke test:
 POST_HOST=http://localhost:3000 POST_TOKEN=demo make smoke-local
 ```
 
-Bump the release version and create the local Git tag:
+Bump the release version, create the version commit, and create the local Git tag:
 
 ```bash
 ./scripts/bump_version.sh v1.3.4

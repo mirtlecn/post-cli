@@ -56,6 +56,7 @@ Expected workflow:
    - updates `VERSION`
    - rebuilds the binary with build metadata
    - verifies `./post version`
+   - creates a commit with message `chore: bump version to vX.Y.Z`
    - recreates the local git tag for that version
 
 Important details:

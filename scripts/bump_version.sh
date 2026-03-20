@@ -19,7 +19,8 @@ What it does:
   1. Update VERSION
   2. Rebuild the CLI with injected build info
   3. Verify `./post version`
-  4. Create or update the local Git tag for that version
+  4. Commit the VERSION change
+  5. Create or update the local Git tag for that version
 
 Notes:
   - The GitHub release workflow is triggered after pushing the created tag.
@@ -33,6 +34,11 @@ validate_version() {
 
 ensure_clean_worktree() {
   [ -z "$(git status --short)" ] || die "worktree is not clean"
+}
+
+commit_version_bump() {
+  git add "$VERSION_FILE"
+  git commit -m "chore: bump version to $TARGET_VERSION" >/dev/null
 }
 
 main() {
@@ -53,6 +59,8 @@ main() {
   VERSION_OUTPUT=$(./post version)
   printf '%s\n' "$VERSION_OUTPUT" | grep -F "post $TARGET_VERSION" >/dev/null 2>&1 || die "built binary did not report $TARGET_VERSION"
 
+  commit_version_bump
+
   if git rev-parse -q --verify "refs/tags/$TARGET_VERSION" >/dev/null 2>&1; then
     git tag -d "$TARGET_VERSION" >/dev/null
   fi
@@ -60,6 +68,7 @@ main() {
 
   printf 'bumped version to %s\n' "$TARGET_VERSION"
   printf 'verified build output: %s\n' "$(printf '%s\n' "$VERSION_OUTPUT" | head -n 1)"
+  printf 'created commit: %s\n' "$(git rev-parse --short HEAD)"
   printf 'created local tag: %s\n' "$TARGET_VERSION"
 }
 
