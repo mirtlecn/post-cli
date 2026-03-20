@@ -1,19 +1,14 @@
 package cli
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/mirtle/post-cli/internal/config"
-	"github.com/mirtle/post-cli/internal/metadata"
 	"github.com/mirtle/post-cli/internal/post"
-	"gopkg.in/yaml.v3"
 )
 
 var nowFunc = time.Now
@@ -24,13 +19,6 @@ type pubOptions struct {
 	Title       string
 	TTL         *int
 	SkipConfirm bool
-}
-
-type markdownMetadata struct {
-	Title   string `yaml:"title"`
-	Slug    string `yaml:"slug"`
-	Created string `yaml:"created"`
-	Date    string `yaml:"date"`
 }
 
 func parsePubOptions(args []string) (pubOptions, error) {
@@ -108,119 +96,19 @@ func (app *App) runPub(
 		return err
 	}
 
-	markdownMetadata, err := readMarkdownMetadata(options.FilePath)
-	if err != nil {
-		return err
-	}
-
 	topic := cfg.PubTopic
 	if topic == "" {
 		return fmt.Errorf("POST_PUB_TOPIC or pub_topic must be set for post pub")
 	}
 
-	title := options.Title
-	if title == "" {
-		title = markdownMetadata.Title
-	}
-
-	slug := options.Slug
-	if slug == "" {
-		slug = markdownMetadata.Slug
-	}
-	if slug == "" {
-		slug = metadata.GenerateSlugFromTitle(title, nowFunc().Unix())
-	}
-
-	created := markdownMetadata.Created
-	if created == "" {
-		created = nowFunc().Format(time.RFC3339)
-	}
-
 	return app.runCreate(ctx, service, post.NewOptions{
 		FilePath:    options.FilePath,
-		Slug:        slug,
-		Title:       title,
+		Slug:        options.Slug,
+		Title:       options.Title,
 		Topic:       topic,
-		Created:     created,
 		TTL:         options.TTL,
 		Type:        "md2html",
 		Method:      "POST",
 		SkipConfirm: options.SkipConfirm,
 	}, stdinTTY, host)
-}
-
-func readMarkdownMetadata(filePath string) (markdownMetadata, error) {
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return markdownMetadata{}, fmt.Errorf("read markdown file: %w", err)
-	}
-
-	metadata, body, err := parseMarkdownFrontMatter(content)
-	if err != nil {
-		return markdownMetadata{}, err
-	}
-
-	if metadata.Title == "" {
-		metadata.Title = extractFirstHeading(body)
-	}
-	if metadata.Title == "" {
-		metadata.Title = strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
-	}
-	if metadata.Created == "" {
-		metadata.Created = metadata.Date
-	}
-
-	return metadata, nil
-}
-
-func parseMarkdownFrontMatter(content []byte) (markdownMetadata, []byte, error) {
-	trimmedContent := bytes.TrimPrefix(content, []byte("\xef\xbb\xbf"))
-	if !bytes.HasPrefix(trimmedContent, []byte("---\n")) && !bytes.Equal(trimmedContent, []byte("---")) && !bytes.HasPrefix(trimmedContent, []byte("---\r\n")) {
-		return markdownMetadata{}, trimmedContent, nil
-	}
-
-	lines := splitLines(trimmedContent)
-	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
-		return markdownMetadata{}, trimmedContent, nil
-	}
-
-	closingIndex := -1
-	for index := 1; index < len(lines); index++ {
-		line := strings.TrimSpace(lines[index])
-		if line == "---" || line == "..." {
-			closingIndex = index
-			break
-		}
-	}
-	if closingIndex == -1 {
-		return markdownMetadata{}, nil, fmt.Errorf("parse front matter: missing closing delimiter")
-	}
-
-	var metadata markdownMetadata
-	frontMatter := strings.Join(lines[1:closingIndex], "\n")
-	if err := yaml.Unmarshal([]byte(frontMatter), &metadata); err != nil {
-		return markdownMetadata{}, nil, fmt.Errorf("parse front matter: %w", err)
-	}
-
-	body := strings.Join(lines[closingIndex+1:], "\n")
-	return metadata, []byte(body), nil
-}
-
-func splitLines(content []byte) []string {
-	normalized := strings.ReplaceAll(string(content), "\r\n", "\n")
-	return strings.Split(normalized, "\n")
-}
-
-func extractFirstHeading(content []byte) string {
-	for _, line := range splitLines(content) {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
-			continue
-		}
-		if strings.HasPrefix(trimmed, "# ") {
-			return strings.TrimSpace(strings.TrimPrefix(trimmed, "# "))
-		}
-		break
-	}
-	return ""
 }

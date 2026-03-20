@@ -46,76 +46,11 @@ func TestParsePubOptionsRejectsUnknownOption(t *testing.T) {
 	}
 }
 
-func TestReadMarkdownMetadataUsesFrontMatterTitleSlugAndCreated(t *testing.T) {
+func TestRunPubBuildsCreateOptionsFromMetadata(t *testing.T) {
 	filePath := writeMarkdownTestFile(t, `---
 title: Front Matter Title
 slug: fm-slug
 created: 2026-03-01
----
-
-# Heading Title
-`)
-
-	metadata, err := readMarkdownMetadata(filePath)
-	if err != nil {
-		t.Fatalf("readMarkdownMetadata returned error: %v", err)
-	}
-
-	if metadata.Title != "Front Matter Title" || metadata.Slug != "fm-slug" || metadata.Created != "2026-03-01" {
-		t.Fatalf("unexpected metadata: %#v", metadata)
-	}
-}
-
-func TestReadMarkdownMetadataFallsBackToHeadingAndDate(t *testing.T) {
-	filePath := writeMarkdownTestFile(t, `---
-date: 2026-03-01T08:00:00+08:00
----
-
-# Heading Title
-`)
-
-	metadata, err := readMarkdownMetadata(filePath)
-	if err != nil {
-		t.Fatalf("readMarkdownMetadata returned error: %v", err)
-	}
-
-	if metadata.Title != "Heading Title" {
-		t.Fatalf("unexpected title: %#v", metadata)
-	}
-	if metadata.Created != "2026-03-01T08:00:00+08:00" {
-		t.Fatalf("unexpected created: %#v", metadata)
-	}
-}
-
-func TestReadMarkdownMetadataFallsBackToFileName(t *testing.T) {
-	tempDir := t.TempDir()
-	filePath := filepath.Join(tempDir, "hello-world.md")
-	if err := os.WriteFile(filePath, []byte("\ncontent\n"), 0o644); err != nil {
-		t.Fatalf("write markdown file: %v", err)
-	}
-
-	metadata, err := readMarkdownMetadata(filePath)
-	if err != nil {
-		t.Fatalf("readMarkdownMetadata returned error: %v", err)
-	}
-
-	if metadata.Title != "hello-world" {
-		t.Fatalf("unexpected title: %#v", metadata)
-	}
-}
-
-func TestRunPubBuildsCreateOptionsFromMetadata(t *testing.T) {
-	originalNowFunc := nowFunc
-	nowFunc = func() time.Time {
-		return time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
-	}
-	t.Cleanup(func() {
-		nowFunc = originalNowFunc
-	})
-
-	filePath := writeMarkdownTestFile(t, `---
-title: Front Matter Title
-slug: fm-slug
 ---
 
 # Heading Title
@@ -130,7 +65,7 @@ slug: fm-slug
 		if payload.Path != "fm-slug" || payload.Title != "Front Matter Title" || payload.Topic != "quick-notes" {
 			t.Fatalf("unexpected payload: %#v", payload)
 		}
-		if payload.Created != "2026-03-01T00:00:00Z" {
+		if payload.Created != "2026-03-01" {
 			t.Fatalf("unexpected created: %#v", payload)
 		}
 	}, nil)
@@ -155,6 +90,10 @@ func TestRunPubGeneratesSlugFromFinalTitleAndUnixTime(t *testing.T) {
 	})
 
 	filePath := writeMarkdownTestFile(t, "# Hello World\n")
+	modTime := time.Date(2026, 3, 6, 7, 8, 9, 0, time.UTC)
+	if err := os.Chtimes(filePath, modTime, modTime); err != nil {
+		t.Fatalf("set file times: %v", err)
+	}
 	service := newStubPubService(t, func(payload api.JSONRequest) {
 		expectedSlug := metadata.GenerateSlugFromTitle("Hello World", 1760000000)
 		if payload.Path != expectedSlug {
@@ -163,7 +102,7 @@ func TestRunPubGeneratesSlugFromFinalTitleAndUnixTime(t *testing.T) {
 		if payload.Title != "Hello World" {
 			t.Fatalf("unexpected payload title: %#v", payload)
 		}
-		if payload.Created != "2025-10-09T08:53:20Z" {
+		if payload.Created != modTime.Format(time.RFC3339) {
 			t.Fatalf("unexpected created: %#v", payload)
 		}
 	}, nil)

@@ -32,10 +32,10 @@ Usage:
 
 Options for 'new':
   -f, --file <path>              Read content from file
-  -s, --slug <path>              Custom slug/path (default: auto-generated)
-  -i, --title <title>            Set item title
+  -s, --slug <path>              Custom slug/path (auto-inferred for file input)
+  -i, --title <title>            Set item title (auto-inferred for file input)
   -p, --topic <topic>            Attach item to a topic (requires --title)
-  --created <time>               Set created time and send it to the API
+  --created <time>               Set created time and send it to the API (auto-inferred for file input)
   -t, --ttl <minutes>            Expiration time in minutes (0 means never)
   -u, --update                   Overwrite if slug already exists (uses PUT)
   -y, --no-confirm               Skip confirmation prompt
@@ -56,10 +56,10 @@ Options for 'ls' and 'rm':
   -x, --export                   Return full content
 
 Options for shortcut commands:
-  -s, --slug <path>              Custom slug/path
-  -i, --title <title>            Set item title
+  -s, --slug <path>              Custom slug/path (auto-inferred for file input)
+  -i, --title <title>            Set item title (auto-inferred for file input)
   -p, --topic <topic>            Attach item to a topic (requires --title)
-  --created <time>               Set created time and send it to the API
+  --created <time>               Set created time and send it to the API (auto-inferred for file input)
   -t, --ttl <minutes>            Override default 10080-minute expiration
   -u, --update                   Overwrite if slug already exists
   -y, --no-confirm               Skip confirmation prompt
@@ -74,11 +74,13 @@ Options for 'pub':
   -t, --ttl <minutes>            Optional TTL override
   -y, --no-confirm               Skip confirmation prompt
 
-Pub metadata inference:
-  topic                          POST_PUB_TOPIC -> config pub_topic -> fail
+File metadata inference:
   title                          --title -> front matter title -> first H1 -> file name
-  created                        front matter created -> front matter date -> current time
+  created                        --created -> front matter created -> front matter date -> file modified time -> current time
   slug                           --slug -> front matter slug -> generated from title + current Unix time
+
+Pub topic inference:
+  topic                          POST_PUB_TOPIC -> config pub_topic -> fail
 
 Options for 'topic new' and 'topic refresh':
   -i, --title <title>            Set topic title

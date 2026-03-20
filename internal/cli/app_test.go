@@ -5,8 +5,10 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mirtle/post-cli/internal/api"
 	"github.com/mirtle/post-cli/internal/post"
@@ -216,6 +218,100 @@ func TestRunCreateUsesAlignedConfirmationPrompt(t *testing.T) {
 	}
 }
 
+func TestRunCreateInfersMetadataForFileContent(t *testing.T) {
+	filePath := writeCreateTestFile(t, `---
+title: Front Matter Title
+slug: front-matter-slug
+date: 2026-03-01T08:00:00+08:00
+---
+
+# Heading Title
+
+content
+`)
+
+	service := post.NewService(&stubCreateClient{
+		postJSONFunc: func(_ context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
+			if method != http.MethodPost || export {
+				t.Fatalf("unexpected create call: %s export=%v", method, export)
+			}
+			if payload.Title != "Front Matter Title" || payload.Path != "front-matter-slug" {
+				t.Fatalf("unexpected payload metadata: %#v", payload)
+			}
+			if payload.Created != "2026-03-01T08:00:00+08:00" {
+				t.Fatalf("unexpected created: %#v", payload)
+			}
+			return []byte(`{"surl":"https://sho.rt/file-content"}`), nil
+		},
+	}, &stubCreateClipboard{}, bytes.NewBuffer(nil), &bytes.Buffer{})
+
+	app := NewApp(os.Stdin, &bytes.Buffer{}, &bytes.Buffer{}, BuildInfo{})
+	err := app.runCreate(context.Background(), service, post.NewOptions{
+		FilePath:    filePath,
+		Type:        "text",
+		Method:      http.MethodPost,
+		SkipConfirm: true,
+	}, false, "https://example.com")
+	if err != nil {
+		t.Fatalf("runCreate returned error: %v", err)
+	}
+}
+
+func TestRunCreateInfersMetadataForFileUploadShortcut(t *testing.T) {
+	originalNowFunc := nowFunc
+	nowFunc = func() time.Time {
+		return time.Unix(1760000000, 0).UTC()
+	}
+	t.Cleanup(func() {
+		nowFunc = originalNowFunc
+	})
+
+	filePath := writeCreateTestFile(t, "file body")
+	modTime := time.Date(2026, 3, 6, 7, 8, 9, 0, time.UTC)
+	if err := os.Chtimes(filePath, modTime, modTime); err != nil {
+		t.Fatalf("set file times: %v", err)
+	}
+
+	options, err := parseShortcutOptions("file", []string{filePath})
+	if err != nil {
+		t.Fatalf("parseShortcutOptions returned error: %v", err)
+	}
+
+	service := post.NewService(&stubCreateClient{
+		uploadFileFunc: func(_ context.Context, method string, uploadPath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error) {
+			if uploadPath != filePath {
+				t.Fatalf("unexpected upload path: %s", uploadPath)
+			}
+			if title != "note" {
+				t.Fatalf("unexpected title: %s", title)
+			}
+			if slug != "note-1760000000" {
+				t.Fatalf("unexpected slug: %s", slug)
+			}
+			if created != modTime.Format(time.RFC3339) {
+				t.Fatalf("unexpected created: %s", created)
+			}
+			return []byte(`{"surl":"https://sho.rt/file-upload"}`), nil
+		},
+	}, &stubCreateClipboard{}, bytes.NewBuffer(nil), &bytes.Buffer{})
+
+	app := NewApp(os.Stdin, &bytes.Buffer{}, &bytes.Buffer{}, BuildInfo{})
+	err = app.runCreate(context.Background(), service, options, false, "https://example.com")
+	if err != nil {
+		t.Fatalf("runCreate returned error: %v", err)
+	}
+}
+
+func writeCreateTestFile(t *testing.T, content string) string {
+	t.Helper()
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "note.md")
+	if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
+		t.Fatalf("write create test file: %v", err)
+	}
+	return filePath
+}
+
 func TestBashCompletionIncludesClipboardFlagsAndFilePathCompletion(t *testing.T) {
 	var stdout bytes.Buffer
 	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{}, BuildInfo{})
@@ -348,7 +444,8 @@ func TestHelpDoesNotRequireConfig(t *testing.T) {
 }
 
 type stubCreateClient struct {
-	postJSONFunc func(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error)
+	postJSONFunc   func(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error)
+	uploadFileFunc func(ctx context.Context, method string, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error)
 }
 
 func (client *stubCreateClient) PostJSON(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
@@ -363,8 +460,11 @@ func (client *stubCreateClient) Delete(context.Context, api.JSONRequest, bool) (
 	panic("unexpected Delete call")
 }
 
-func (client *stubCreateClient) UploadFile(context.Context, string, string, string, string, string, string, *int, bool) ([]byte, error) {
-	panic("unexpected UploadFile call")
+func (client *stubCreateClient) UploadFile(ctx context.Context, method string, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error) {
+	if client.uploadFileFunc == nil {
+		panic("unexpected UploadFile call")
+	}
+	return client.uploadFileFunc(ctx, method, filePath, slug, title, topic, created, ttl, export)
 }
 
 type stubCreateClipboard struct{}
