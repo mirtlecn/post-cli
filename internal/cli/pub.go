@@ -166,14 +166,19 @@ func (app *App) runPubDirectory(
 	host string,
 	parentTopic string,
 ) error {
+	directoryName, err := resolvePubDirectoryName(options.FilePath)
+	if err != nil {
+		return err
+	}
+
 	childSlug := options.Slug
 	if childSlug == "" {
-		childSlug = metadata.GenerateSlugFromTitle(filepath.Base(options.FilePath))
+		childSlug = metadata.GenerateSlugFromTitle(directoryName)
 	}
 	topicPath := parentTopic + "/" + childSlug
 	topicTitle := options.Title
 	if topicTitle == "" {
-		topicTitle = filepath.Base(options.FilePath)
+		topicTitle = directoryName
 	}
 
 	plan, err := planPubDirectory(options.FilePath, topicPath, topicTitle)
@@ -463,6 +468,16 @@ func buildPubDirectoryEntryValidationPath(topicPath string, entry pubDirectoryEn
 
 func buildPubDirectoryTopicURL(host string, topicPath string) string {
 	return strings.TrimRight(host, "/") + "/" + topicPath
+}
+
+func resolvePubDirectoryName(path string) (string, error) {
+	cleanPath := filepath.Clean(path)
+	absolutePath, err := filepath.Abs(cleanPath)
+	if err != nil {
+		return "", fmt.Errorf("resolve directory path: %w", err)
+	}
+
+	return filepath.Base(absolutePath), nil
 }
 
 func writePubDirectoryConfirmPreview(

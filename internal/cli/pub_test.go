@@ -356,6 +356,47 @@ func TestRunPubDirectoryUsesCustomChildSlug(t *testing.T) {
 	}
 }
 
+func TestRunPubDirectoryUsesCurrentDirectoryNameForDotPath(t *testing.T) {
+	workingDir := t.TempDir()
+	filePath := filepath.Join(workingDir, "index.md")
+	if err := os.WriteFile(filePath, []byte("# Home\n"), 0o644); err != nil {
+		t.Fatalf("write markdown: %v", err)
+	}
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(workingDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() {
+		if chdirErr := os.Chdir(originalDir); chdirErr != nil {
+			t.Fatalf("restore cwd: %v", chdirErr)
+		}
+	}()
+
+	client := &recordingPubClient{}
+	service := post.NewService(client, &stubCreateClipboard{}, bytes.NewBuffer(nil), &bytes.Buffer{})
+	app := NewApp(os.Stdin, &bytes.Buffer{}, &bytes.Buffer{}, BuildInfo{})
+	err = app.runPub(context.Background(), service, []string{"-y", "."}, false, "https://example.com", config.Config{
+		Host:     "https://example.com",
+		Token:    "demo",
+		PubTopic: "notes",
+	})
+	if err != nil {
+		t.Fatalf("runPub returned error: %v", err)
+	}
+
+	expectedPath := "notes/" + filepath.Base(workingDir)
+	if len(client.postJSONCalls) == 0 || client.postJSONCalls[0].payload.Path != expectedPath {
+		t.Fatalf("unexpected topic path: %#v", client.postJSONCalls)
+	}
+	if client.postJSONCalls[0].payload.Title != filepath.Base(workingDir) {
+		t.Fatalf("unexpected topic title: %#v", client.postJSONCalls[0].payload)
+	}
+}
+
 func TestPlanPubDirectoryRejectsConflictingSlugs(t *testing.T) {
 	rootDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(rootDir, "hello!.md"), []byte("# Hello\n"), 0o644); err != nil {
