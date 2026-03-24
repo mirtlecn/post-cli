@@ -97,12 +97,12 @@ It does not read from stdin or clipboard.
 File-path create commands infer metadata when explicit flags are not provided:
 
 - `title` from `title`, then first H1, then file name
-- `slug` from `slug`, then generated from the final title plus the current Unix time
+- `slug` from `slug`, then generated from the final title
 - `created` from `created`, then `date`, then file modified time, then current time
 
 This applies to:
 
-- `post pub <file.md>`
+- `post pub <path>`
 - `post new -f <path>`
 - `post md|qr|html|text|url -f <path>`
 - `post file <path>`
@@ -113,6 +113,13 @@ This applies to:
 - `topic` from `POST_PUB_TOPIC`, then config `pub_topic`
 
 `post pub` fails when no topic source is configured.
+
+When the path is a directory, `post pub`:
+
+- creates a child topic at `<pub_topic>/<folder_name-or-slug>`
+- uploads `.md` files as `md2html`
+- uploads other non-hidden files as file uploads
+- skips hidden files and hidden directories
 
 Create-capable commands also support:
 
@@ -136,6 +143,8 @@ echo "piped text" | post
 post md -f README.md
 echo '# Hello' | post md
 post pub ./note.md
+post pub ./notes
+post pub -yu ./notes
 post qr https://example.com
 post html '<h1>Hello</h1>'
 post text

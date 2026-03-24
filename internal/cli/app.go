@@ -294,7 +294,19 @@ func (app *App) runCreate(
 	}
 	options = resolvedOptions
 	options.StdinTTY = stdinTTY
-	options.Confirm = func(_ string) (bool, error) {
+	options.Confirm = app.newConfirmFunc(host)
+
+	result, err := service.New(ctx, options)
+	if err != nil {
+		return err
+	}
+
+	app.writeCreateResult(result)
+	return nil
+}
+
+func (app *App) newConfirmFunc(host string) func(string) (bool, error) {
+	return func(_ string) (bool, error) {
 		fmt.Fprintf(app.stderr, "%-12s %s\n", "post to", host)
 		fmt.Fprintf(app.stderr, "%-12s ", "continue?")
 		fmt.Fprint(app.stderr, "[y/N] ")
@@ -307,19 +319,15 @@ func (app *App) runCreate(
 		trimmed := strings.TrimSpace(answer)
 		return trimmed == "y" || trimmed == "Y" || strings.EqualFold(trimmed, "yes"), nil
 	}
+}
 
-	result, err := service.New(ctx, options)
-	if err != nil {
-		return err
-	}
-
+func (app *App) writeCreateResult(result post.Result) {
 	if result.Stderr != "" {
 		_, _ = io.WriteString(app.stderr, result.Stderr)
 	}
 	if result.Stdout != "" {
 		_, _ = io.WriteString(app.stdout, result.Stdout)
 	}
-	return nil
 }
 
 func applyAutomaticFileMetadata(options post.NewOptions) (post.NewOptions, error) {
@@ -340,7 +348,7 @@ func applyAutomaticFileMetadata(options post.NewOptions) (post.NewOptions, error
 		if fileMetadata.Slug != "" {
 			options.Slug = fileMetadata.Slug
 		} else {
-			options.Slug = metadata.GenerateSlugFromTitle(options.Title, now.Unix())
+			options.Slug = metadata.GenerateSlugFromTitle(options.Title)
 		}
 	}
 	if options.Created == "" {

@@ -1,7 +1,6 @@
 package metadata
 
 import (
-	"fmt"
 	"strings"
 
 	sluglib "github.com/gosimple/slug"
@@ -9,11 +8,11 @@ import (
 
 const fallbackSlugBase = "post"
 
-func GenerateSlugFromTitle(title string, unixTime int64) string {
+func GenerateSlugFromTitle(title string) string {
 	base := strings.ToLower(strings.TrimSpace(sluglib.Make(title)))
 	if base == "" {
 		base = fallbackSlugBase
 	}
 
-	return fmt.Sprintf("%s-%d", base, unixTime)
+	return base
 }

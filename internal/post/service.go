@@ -246,6 +246,45 @@ func (service *Service) ListTopics(ctx context.Context, path string, export bool
 	return formatJSON(body)
 }
 
+func (service *Service) TopicExists(ctx context.Context, path string) (bool, error) {
+	output, err := service.ListTopics(ctx, path, true)
+	if err != nil {
+		if strings.Contains(err.Error(), "URL not found") || strings.Contains(err.Error(), "topic does not exist") {
+			return false, nil
+		}
+		return false, err
+	}
+	return topicExistsFromJSON(output, path)
+}
+
+func topicExistsFromJSON(output string, path string) (bool, error) {
+	trimmedOutput := strings.TrimSpace(output)
+	if trimmedOutput == "" {
+		return false, nil
+	}
+
+	type topicRecord struct {
+		Path string `json:"path"`
+	}
+
+	var single topicRecord
+	if err := json.Unmarshal([]byte(trimmedOutput), &single); err == nil {
+		return single.Path == path, nil
+	}
+
+	var many []topicRecord
+	if err := json.Unmarshal([]byte(trimmedOutput), &many); err == nil {
+		for _, item := range many {
+			if item.Path == path {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+
+	return false, fmt.Errorf("parse topic lookup response")
+}
+
 func (service *Service) CreateTopic(ctx context.Context, path string, title string, export bool) (string, error) {
 	body, err := service.client.PostJSON(ctx, http.MethodPost, api.JSONRequest{
 		Path:  path,

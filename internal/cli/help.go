@@ -7,7 +7,7 @@ Usage:
   post md [opts] [text...]     Upload Markdown as HTML (default ttl: 10080)
   post qr [opts] [text...]     Upload text as QR code (default ttl: 10080)
   post file [opts] <file>      Upload a file path directly (default ttl: 10080)
-  post pub [opts] <file.md>    Publish Markdown file with inferred metadata
+  post pub [opts] <path>       Publish a Markdown file or folder with inferred metadata
   post html [opts] [text...]   Upload HTML content (default ttl: 10080)
   post text [opts] [text...]   Upload text content (default ttl: 10080)
   post url [opts] [text...]    Upload URL content (default ttl: 10080)
@@ -69,18 +69,25 @@ Options for shortcut commands:
   -w, --write-clipboard          Disable default clipboard write for shortcut commands
 
 Options for 'pub':
-  -s, --slug <path>              Override front matter slug
-  -i, --title <title>            Override inferred title
+  -s, --slug <path>              Override item slug, or child topic slug for folder publish
+  -i, --title <title>            Override inferred title, or child topic title for folder publish
   -t, --ttl <minutes>            Optional TTL override
+  -u, --update                   Overwrite if slug already exists
   -y, --no-confirm               Skip confirmation prompt
 
 File metadata inference:
   title                          --title -> front matter title -> first H1 -> file name
   created                        --created -> front matter created -> front matter date -> file modified time -> current time
-  slug                           --slug -> front matter slug -> generated from title + current Unix time
+  slug                           --slug -> front matter slug -> generated from title
 
 Pub topic inference:
   topic                          POST_PUB_TOPIC -> config pub_topic -> fail
+
+Folder publish:
+  topic path                     <pub_topic>/<folder_name-or-slug>
+  markdown files                 upload as md2html
+  non-hidden files               upload as file
+  hidden files and directories   skipped
 
 Options for 'topic new' and 'topic refresh':
   -i, --title <title>            Set topic title
@@ -119,6 +126,8 @@ Examples:
   post html '<h1>Hello</h1>'
   post html -f snippet.html
   post pub ./note.md
+  post pub ./notes
+  post pub -yu ./notes
   post text -p anime -i "Quick Note" "topic item"
   post file -p anime -i "Poster Pack" ./poster.png
   post text

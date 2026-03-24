@@ -285,7 +285,7 @@ func TestRunCreateInfersMetadataForFileUploadShortcut(t *testing.T) {
 			if title != "note" {
 				t.Fatalf("unexpected title: %s", title)
 			}
-			if slug != "note-1760000000" {
+			if slug != "note" {
 				t.Fatalf("unexpected slug: %s", slug)
 			}
 			if created != modTime.Format(time.RFC3339) {
@@ -394,7 +394,7 @@ func TestCompletionPrioritizesFrequentCommands(t *testing.T) {
 	if !strings.Contains(output, "--read-clipboard") || !strings.Contains(output, "--write-clipboard") {
 		t.Fatalf("clipboard flags missing in zsh completion: %q", output)
 	}
-	if !strings.Contains(output, "'topic:Manage topics'") || !strings.Contains(output, "'pub:Publish Markdown file with inferred metadata'") || !strings.Contains(output, "--type") || !strings.Contains(output, "--created") || !strings.Contains(output, "--no-confirm") {
+	if !strings.Contains(output, "'topic:Manage topics'") || !strings.Contains(output, "'pub:Publish a Markdown file or folder with inferred metadata'") || !strings.Contains(output, "--type") || !strings.Contains(output, "--created") || !strings.Contains(output, "--no-confirm") {
 		t.Fatalf("type/topic completion missing in zsh completion: %q", output)
 	}
 	if !strings.Contains(output, "_post_topic_names()") || !strings.Contains(output, ":topic:_post_topic_names") {
@@ -438,7 +438,7 @@ func TestHelpDoesNotRequireConfig(t *testing.T) {
 	if !strings.Contains(stdout.String(), "--read-clipboard") || !strings.Contains(stdout.String(), "post new -r") {
 		t.Fatalf("help output missing clipboard usage: %q", stdout.String())
 	}
-	if !strings.Contains(stdout.String(), "post topic new <topic>") || !strings.Contains(stdout.String(), "post pub [opts] <file.md>") || !strings.Contains(stdout.String(), "--type <mode>") || !strings.Contains(stdout.String(), "--created <time>") || !strings.Contains(stdout.String(), "-y, --no-confirm") || !strings.Contains(stdout.String(), "POST_PUB_TOPIC") {
+	if !strings.Contains(stdout.String(), "post topic new <topic>") || !strings.Contains(stdout.String(), "post pub [opts] <path>") || !strings.Contains(stdout.String(), "--type <mode>") || !strings.Contains(stdout.String(), "--created <time>") || !strings.Contains(stdout.String(), "-y, --no-confirm") || !strings.Contains(stdout.String(), "POST_PUB_TOPIC") || !strings.Contains(stdout.String(), "-u, --update") {
 		t.Fatalf("help output missing topic/type usage: %q", stdout.String())
 	}
 }

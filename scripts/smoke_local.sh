@@ -16,21 +16,22 @@ go build -o post ./cmd/post
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT INT TERM
 
+PREFIX="smoke-$(date +%s)"
 SAMPLE_FILE="$TMP_DIR/sample.txt"
-AUTO_TEXT_FILE="$TMP_DIR/auto-note.md"
-AUTO_UPLOAD_FILE="$TMP_DIR/upload-note.txt"
+AUTO_TEXT_FILE="$TMP_DIR/$PREFIX-auto-note.md"
+AUTO_UPLOAD_FILE="$TMP_DIR/$PREFIX-upload-note.txt"
 PUB_FILE="$TMP_DIR/pub.md"
 PUB_HEADING_FILE="$TMP_DIR/pub-heading.md"
 PUB_AUTO_SLUG_FILE="$TMP_DIR/pub-auto-slug.md"
 PUB_INVALID_SLUG_FILE="$TMP_DIR/pub-invalid-slug.md"
+PUB_DIR="$TMP_DIR/pub-dir"
 CONFIG_FILE="$TMP_DIR/config.json"
-PREFIX="smoke-$(date +%s)"
 TOPIC_NAME="$PREFIX-topic"
 TOPIC_EXPORT_NAME="$PREFIX-topic-export"
 TOPIC_VIA_NEW_NAME="$PREFIX-topic-via-new"
 
 printf 'file payload\n' > "$SAMPLE_FILE"
-printf '# Auto Text Title\n\nbody\n' > "$AUTO_TEXT_FILE"
+printf '# %s Auto Text Title\n\nbody\n' "$PREFIX" > "$AUTO_TEXT_FILE"
 printf 'upload body\n' > "$AUTO_UPLOAD_FILE"
 cat > "$PUB_FILE" <<EOF
 ---
@@ -47,9 +48,9 @@ cat > "$PUB_HEADING_FILE" <<'EOF'
 
 content
 EOF
-cat > "$PUB_AUTO_SLUG_FILE" <<'EOF'
+cat > "$PUB_AUTO_SLUG_FILE" <<EOF
 
-# Smoke Auto Slug Title
+# $PREFIX Smoke Auto Slug Title
 
 content
 EOF
@@ -59,6 +60,28 @@ slug: bad slug ?
 ---
 
 # Invalid Slug Title
+EOF
+mkdir -p "$PUB_DIR/assets" "$PUB_DIR/nested" "$PUB_DIR/.secret"
+mkdir -p "$PUB_DIR/nested/deep/files"
+cat > "$PUB_DIR/index.md" <<'EOF'
+# Folder Home
+EOF
+printf 'png data\n' > "$PUB_DIR/assets/logo.png"
+cat > "$PUB_DIR/nested/guide.md" <<'EOF'
+---
+slug: custom-guide
+---
+
+# Nested Guide
+
+version one
+EOF
+cat > "$PUB_DIR/nested/deep/guide-2.md" <<'EOF'
+# Deep Guide
+EOF
+printf 'report data\n' > "$PUB_DIR/nested/deep/files/report.pdf"
+cat > "$PUB_DIR/.secret/hidden.md" <<'EOF'
+# Hidden
 EOF
 cat > "$CONFIG_FILE" <<EOF
 {"host":"$POST_HOST","token":"$POST_TOKEN"}
@@ -126,18 +149,18 @@ new_auto_text_output=$(env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./pos
   exit 1
 }
 printf 'PASS\tnew-file-auto-metadata\t%s\n' "$new_auto_text_output"
-assert_contains "$new_auto_text_output" "\"title\": \"Auto Text Title\""
+assert_contains "$new_auto_text_output" "\"title\": \"$PREFIX Auto Text Title\""
 assert_contains "$new_auto_text_output" "\"created\": \"2026-03-07T08:09:10Z\""
-assert_contains "$new_auto_text_output" "\"path\": \"auto-text-title-"
+assert_contains "$new_auto_text_output" "\"path\": \"$PREFIX-auto-text-title\""
 run_success "new-file-upload" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -s "$PREFIX-file-upload" -c file -f "$SAMPLE_FILE"
 auto_upload_output=$(env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y -x "$AUTO_UPLOAD_FILE" 2>&1) || {
   printf 'FAIL\tshortcut-file-auto-metadata\t%s\n' "$auto_upload_output"
   exit 1
 }
 printf 'PASS\tshortcut-file-auto-metadata\t%s\n' "$auto_upload_output"
-assert_contains "$auto_upload_output" "\"title\": \"upload-note\""
+assert_contains "$auto_upload_output" "\"title\": \"$PREFIX-upload-note\""
 assert_contains "$auto_upload_output" "\"created\": \"2026-03-08T09:10:11Z\""
-assert_contains "$auto_upload_output" "\"path\": \"upload-note-"
+assert_contains "$auto_upload_output" "\"path\": \"$PREFIX-upload-note.txt\""
 run_success "new-topic-file-upload" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y -p "$TOPIC_NAME" -i "Topic File" -s "$TOPIC_NAME/upload" "$SAMPLE_FILE"
 run_success "new-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -x -s "$PREFIX-export" "export text"
 run_success "new-update-initial" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -s "$PREFIX-update" "before update"
@@ -177,7 +200,7 @@ auto_slug_output=$(env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" POST_PUB_
   exit 1
 }
 printf 'PASS\tpub-auto-slug\t%s\n' "$auto_slug_output"
-assert_contains "$auto_slug_output" "$TOPIC_NAME/smoke-auto-slug-title-"
+assert_contains "$auto_slug_output" "$TOPIC_NAME/$PREFIX-smoke-auto-slug-title"
 auto_slug_path=${auto_slug_output#"$POST_HOST/"}
 pub_auto_slug_list_output=$(env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$auto_slug_path" 2>&1) || {
   printf 'FAIL\tpub-auto-slug-created\t%s\n' "$pub_auto_slug_list_output"
@@ -185,6 +208,30 @@ pub_auto_slug_list_output=$(env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" 
 }
 printf 'PASS\tpub-auto-slug-created\t%s\n' "$pub_auto_slug_list_output"
 assert_contains "$pub_auto_slug_list_output" "\"created\": \"2026-03-10T09:10:11Z\""
+run_success "pub-dir" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" POST_PUB_TOPIC="$TOPIC_NAME" ./post pub -y "$PUB_DIR"
+run_success "pub-dir-root-file" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$TOPIC_NAME/pub-dir/folder-home"
+run_success "pub-dir-nested-md" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$TOPIC_NAME/pub-dir/nested/custom-guide"
+run_success "pub-dir-deep-md" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$TOPIC_NAME/pub-dir/nested/deep/deep-guide"
+run_success "pub-dir-upload-file" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$TOPIC_NAME/pub-dir/assets/logo.png"
+run_success "pub-dir-deep-file" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$TOPIC_NAME/pub-dir/nested/deep/files/report.pdf"
+cat > "$PUB_DIR/nested/guide.md" <<'EOF'
+---
+slug: custom-guide
+---
+
+# Nested Guide
+
+version two
+EOF
+run_success "pub-dir-update" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" POST_PUB_TOPIC="$TOPIC_NAME" ./post pub -yu "$PUB_DIR"
+pub_dir_update_output=$(env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post export "$TOPIC_NAME/pub-dir/nested/custom-guide" 2>&1) || {
+  printf 'FAIL\tpub-dir-update-export\t%s\n' "$pub_dir_update_output"
+  exit 1
+}
+printf 'PASS\tpub-dir-update-export\t%s\n' "$pub_dir_update_output"
+assert_contains "$pub_dir_update_output" "version two"
+run_failure "pub-dir-hidden-skipped" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$TOPIC_NAME/pub-dir/.secret/hidden"
+run_failure "pub-invalid-slug" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" POST_PUB_TOPIC="$TOPIC_NAME" ./post pub -y "$PUB_INVALID_SLUG_FILE"
 run_success "shortcut-ttl-export" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post text -y -x -s "$PREFIX-shortcut-ttl" "shortcut ttl"
 run_success "shortcut-ttl-override" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post text -y -x -t 60 -s "$PREFIX-shortcut-ttl-override" "shortcut ttl override"
 run_success "ls-one" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post ls "$PREFIX-text"
@@ -214,8 +261,7 @@ run_failure "topic-unknown-command" env POST_HOST="$POST_HOST" POST_TOKEN="$POST
 run_failure "shortcut-file-missing-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y
 run_failure "shortcut-file-read-clipboard" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y -r -f "$SAMPLE_FILE"
 run_failure "shortcut-file-conflicting-path" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post file -y -f "$SAMPLE_FILE" "$SAMPLE_FILE"
-run_failure "pub-missing-topic" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" POST_PUB_TOPIC= ./post pub -y "$PUB_HEADING_FILE"
-run_failure "pub-invalid-slug" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" POST_PUB_TOPIC="$TOPIC_NAME" ./post pub -y "$PUB_INVALID_SLUG_FILE"
+run_failure "pub-missing-topic" env POST_HOST= POST_TOKEN= POST_CONFIG="$CONFIG_FILE" POST_PUB_TOPIC= ./post pub -y "$PUB_HEADING_FILE"
 run_failure "unknown-command" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post oops
 run_failure "unknown-option" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -z text
 run_failure "invalid-ttl" env POST_HOST="$POST_HOST" POST_TOKEN="$POST_TOKEN" ./post new -y -t nope text
