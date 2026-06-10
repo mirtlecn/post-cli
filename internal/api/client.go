@@ -47,55 +47,29 @@ func NewClient(baseURL string, token string, httpClient *http.Client) *Client {
 	}
 }
 
-func (client *Client) PostJSON(ctx context.Context, method string, payload JSONRequest, export bool) ([]byte, error) {
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
-	request, err := client.newRequest(ctx, method, "/", bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-
-	request.Header.Set("Content-Type", "application/json")
-	if export {
-		request.Header.Set("X-Export", "true")
-	}
-
-	return client.do(request)
+func (client *Client) CreateJSON(ctx context.Context, payload JSONRequest, export bool) ([]byte, error) {
+	return client.postJSON(ctx, "/create", payload, export)
 }
 
-func (client *Client) Get(ctx context.Context, payload JSONRequest, export bool) ([]byte, error) {
-	request, err := client.newRequest(ctx, http.MethodGet, "/", nil)
-	if err != nil {
-		return nil, err
-	}
+func (client *Client) UpdateJSON(ctx context.Context, payload JSONRequest, export bool) ([]byte, error) {
+	return client.postJSON(ctx, "/update", payload, export)
+}
 
-	if export {
-		request.Header.Set("X-Export", "true")
-	}
-
-	if payload != (JSONRequest{}) {
-		body, marshalErr := json.Marshal(payload)
-		if marshalErr != nil {
-			return nil, fmt.Errorf("marshal request: %w", marshalErr)
-		}
-		request.Body = io.NopCloser(bytes.NewReader(body))
-		request.ContentLength = int64(len(body))
-		request.Header.Set("Content-Type", "application/json")
-	}
-
-	return client.do(request)
+func (client *Client) Query(ctx context.Context, payload JSONRequest, export bool) ([]byte, error) {
+	return client.postJSON(ctx, "/query", payload, export)
 }
 
 func (client *Client) Delete(ctx context.Context, payload JSONRequest, export bool) ([]byte, error) {
+	return client.postJSON(ctx, "/delete", payload, export)
+}
+
+func (client *Client) postJSON(ctx context.Context, path string, payload JSONRequest, export bool) ([]byte, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	request, err := client.newRequest(ctx, http.MethodDelete, "/", bytes.NewReader(body))
+	request, err := client.newRequest(ctx, http.MethodPost, path, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -108,9 +82,35 @@ func (client *Client) Delete(ctx context.Context, payload JSONRequest, export bo
 	return client.do(request)
 }
 
-func (client *Client) UploadFile(
+func (client *Client) CreateFile(
 	ctx context.Context,
-	method string,
+	filePath string,
+	slug string,
+	title string,
+	topic string,
+	created string,
+	ttl *int,
+	export bool,
+) ([]byte, error) {
+	return client.uploadFile(ctx, "/create", filePath, slug, title, topic, created, ttl, export)
+}
+
+func (client *Client) UpdateFile(
+	ctx context.Context,
+	filePath string,
+	slug string,
+	title string,
+	topic string,
+	created string,
+	ttl *int,
+	export bool,
+) ([]byte, error) {
+	return client.uploadFile(ctx, "/update", filePath, slug, title, topic, created, ttl, export)
+}
+
+func (client *Client) uploadFile(
+	ctx context.Context,
+	path string,
 	filePath string,
 	slug string,
 	title string,
@@ -165,7 +165,7 @@ func (client *Client) UploadFile(
 		return nil, fmt.Errorf("close multipart writer: %w", err)
 	}
 
-	request, err := client.newRequest(ctx, method, "/", &body)
+	request, err := client.newRequest(ctx, http.MethodPost, path, &body)
 	if err != nil {
 		return nil, err
 	}

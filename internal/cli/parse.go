@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -23,9 +22,7 @@ func parseNewOptions(args []string) (post.NewOptions, error) {
 		return post.NewOptions{}, err
 	}
 
-	options := post.NewOptions{
-		Method: http.MethodPost,
-	}
+	options := post.NewOptions{}
 
 	for index := 0; index < len(expandedArgs); {
 		arg := expandedArgs[index]
@@ -70,7 +67,7 @@ func parseNewOptions(args []string) (post.NewOptions, error) {
 			options.TTL = &ttl
 			index = nextIndex
 		case "-u", "--update":
-			options.Method = http.MethodPut
+			options.Update = true
 			index++
 		case "-y", "--no-confirm":
 			options.SkipConfirm = true

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -127,12 +126,12 @@ func TestRunPubGeneratesSlugFromFinalTitle(t *testing.T) {
 	}
 }
 
-func TestRunPubUsesPutWhenUpdateIsEnabled(t *testing.T) {
+func TestRunPubUsesUpdateActionWhenUpdateIsEnabled(t *testing.T) {
 	filePath := writeMarkdownTestFile(t, "# Hello World\n")
 	service := post.NewService(&stubPubClient{
-		postJSONFunc: func(_ context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
-			if method != http.MethodPut || export {
-				t.Fatalf("unexpected call: %s export=%v payload=%#v", method, export, payload)
+		postJSONFunc: func(_ context.Context, action string, payload api.JSONRequest, export bool) ([]byte, error) {
+			if action != "update" || export {
+				t.Fatalf("unexpected call: %s export=%v payload=%#v", action, export, payload)
 			}
 			return []byte(`{"surl":"https://sho.rt/pub"}`), nil
 		},
@@ -282,7 +281,7 @@ func TestRunPubDirectoryCreatesChildTopicAndUploadsFiles(t *testing.T) {
 		t.Fatalf("unexpected post JSON call count: %d", len(client.postJSONCalls))
 	}
 	topicCall := client.postJSONCalls[0]
-	if topicCall.method != http.MethodPost || topicCall.payload.Type != "topic" || topicCall.payload.Path != "notes/"+filepath.Base(rootDir) {
+	if topicCall.action != "create" || topicCall.payload.Type != "topic" || topicCall.payload.Path != "notes/"+filepath.Base(rootDir) {
 		t.Fatalf("unexpected topic call: %#v", topicCall)
 	}
 
@@ -291,8 +290,8 @@ func TestRunPubDirectoryCreatesChildTopicAndUploadsFiles(t *testing.T) {
 		return itemCalls[i].payload.Path < itemCalls[j].payload.Path
 	})
 	for _, itemCall := range itemCalls {
-		if itemCall.method != http.MethodPut {
-			t.Fatalf("expected PUT calls for markdown items: %#v", itemCalls)
+		if itemCall.action != "update" {
+			t.Fatalf("expected update calls for markdown items: %#v", itemCalls)
 		}
 	}
 	expectedMarkdownPaths := map[string]bool{
@@ -319,8 +318,8 @@ func TestRunPubDirectoryCreatesChildTopicAndUploadsFiles(t *testing.T) {
 		"notes/" + filepath.Base(rootDir) + "/nested/deep/files/report": false,
 	}
 	for _, uploadCall := range client.uploadFileCalls {
-		if uploadCall.method != http.MethodPut {
-			t.Fatalf("unexpected upload file method: %#v", uploadCall)
+		if uploadCall.action != "update" {
+			t.Fatalf("unexpected upload file action: %#v", uploadCall)
 		}
 		if _, exists := expectedFilePaths[uploadCall.slug]; exists {
 			expectedFilePaths[uploadCall.slug] = true
@@ -596,7 +595,7 @@ func TestRunPubDirectorySkipsCreateWhenTopicExists(t *testing.T) {
 	}
 
 	client := &recordingPubClient{
-		getFunc: func(_ context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
+		queryFunc: func(_ context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
 			if payload.Path != "notes/"+filepath.Base(rootDir) || payload.Type != "topic" || !export {
 				t.Fatalf("unexpected topic lookup: %#v export=%v", payload, export)
 			}
@@ -614,8 +613,8 @@ func TestRunPubDirectorySkipsCreateWhenTopicExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runPub returned error: %v", err)
 	}
-	if len(client.getCalls) != 1 {
-		t.Fatalf("unexpected get call count: %d", len(client.getCalls))
+	if len(client.queryCalls) != 1 {
+		t.Fatalf("unexpected query call count: %d", len(client.queryCalls))
 	}
 	if len(client.postJSONCalls) != 1 {
 		t.Fatalf("unexpected post JSON call count: %d", len(client.postJSONCalls))
@@ -645,7 +644,7 @@ func TestRunPubDirectoryCancelsPendingUploadsAfterFailure(t *testing.T) {
 	}
 
 	client := &recordingPubClient{
-		postJSONFunc: func(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
+		postJSONFunc: func(ctx context.Context, action string, payload api.JSONRequest, export bool) ([]byte, error) {
 			if payload.Type == "topic" {
 				return []byte(`{"surl":"https://sho.rt/topic"}`), nil
 			}
@@ -687,31 +686,39 @@ func writeMarkdownTestFile(t *testing.T, content string) string {
 }
 
 type stubPubClient struct {
-	postJSONFunc func(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error)
+	postJSONFunc func(ctx context.Context, action string, payload api.JSONRequest, export bool) ([]byte, error)
 }
 
-func (client *stubPubClient) PostJSON(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
-	return client.postJSONFunc(ctx, method, payload, export)
+func (client *stubPubClient) CreateJSON(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
+	return client.postJSONFunc(ctx, "create", payload, export)
 }
 
-func (client *stubPubClient) Get(context.Context, api.JSONRequest, bool) ([]byte, error) {
-	panic("unexpected Get call")
+func (client *stubPubClient) UpdateJSON(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
+	return client.postJSONFunc(ctx, "update", payload, export)
+}
+
+func (client *stubPubClient) Query(context.Context, api.JSONRequest, bool) ([]byte, error) {
+	panic("unexpected Query call")
 }
 
 func (client *stubPubClient) Delete(context.Context, api.JSONRequest, bool) ([]byte, error) {
 	panic("unexpected Delete call")
 }
 
-func (client *stubPubClient) UploadFile(context.Context, string, string, string, string, string, string, *int, bool) ([]byte, error) {
-	panic("unexpected UploadFile call")
+func (client *stubPubClient) CreateFile(context.Context, string, string, string, string, string, *int, bool) ([]byte, error) {
+	panic("unexpected CreateFile call")
+}
+
+func (client *stubPubClient) UpdateFile(context.Context, string, string, string, string, string, *int, bool) ([]byte, error) {
+	panic("unexpected UpdateFile call")
 }
 
 func newStubPubService(t *testing.T, assertPayload func(payload api.JSONRequest), afterCall func() error) *post.Service {
 	t.Helper()
 	return post.NewService(&stubPubClient{
-		postJSONFunc: func(_ context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
-			if method != http.MethodPost || export {
-				t.Fatalf("unexpected call: %s export=%v", method, export)
+		postJSONFunc: func(_ context.Context, action string, payload api.JSONRequest, export bool) ([]byte, error) {
+			if action != "create" || export {
+				t.Fatalf("unexpected call: %s export=%v", action, export)
 			}
 			if assertPayload != nil {
 				assertPayload(payload)
@@ -727,13 +734,13 @@ func newStubPubService(t *testing.T, assertPayload func(payload api.JSONRequest)
 }
 
 type recordingPostJSONCall struct {
-	method  string
+	action  string
 	payload api.JSONRequest
 	export  bool
 }
 
 type recordingUploadFileCall struct {
-	method   string
+	action   string
 	filePath string
 	slug     string
 	title    string
@@ -746,34 +753,42 @@ type recordingUploadFileCall struct {
 type recordingPubClient struct {
 	postJSONCalls   []recordingPostJSONCall
 	uploadFileCalls []recordingUploadFileCall
-	getCalls        []api.JSONRequest
-	postJSONFunc    func(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error)
-	getFunc         func(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error)
+	queryCalls      []api.JSONRequest
+	postJSONFunc    func(ctx context.Context, action string, payload api.JSONRequest, export bool) ([]byte, error)
+	queryFunc       func(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error)
 	mu              sync.Mutex
 }
 
-func (client *recordingPubClient) PostJSON(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
+func (client *recordingPubClient) CreateJSON(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
+	return client.postJSON(ctx, "create", payload, export)
+}
+
+func (client *recordingPubClient) UpdateJSON(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
+	return client.postJSON(ctx, "update", payload, export)
+}
+
+func (client *recordingPubClient) postJSON(ctx context.Context, action string, payload api.JSONRequest, export bool) ([]byte, error) {
 	client.mu.Lock()
 	client.postJSONCalls = append(client.postJSONCalls, recordingPostJSONCall{
-		method:  method,
+		action:  action,
 		payload: payload,
 		export:  export,
 	})
 	postJSONFunc := client.postJSONFunc
 	client.mu.Unlock()
 	if postJSONFunc != nil {
-		return postJSONFunc(ctx, method, payload, export)
+		return postJSONFunc(ctx, action, payload, export)
 	}
 	return []byte(`{"surl":"https://sho.rt/pub"}`), nil
 }
 
-func (client *recordingPubClient) Get(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
+func (client *recordingPubClient) Query(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
 	client.mu.Lock()
-	client.getCalls = append(client.getCalls, payload)
-	getFunc := client.getFunc
+	client.queryCalls = append(client.queryCalls, payload)
+	queryFunc := client.queryFunc
 	client.mu.Unlock()
-	if getFunc != nil {
-		return getFunc(ctx, payload, export)
+	if queryFunc != nil {
+		return queryFunc(ctx, payload, export)
 	}
 	return nil, fmt.Errorf("HTTP 404: URL not found")
 }
@@ -782,10 +797,18 @@ func (client *recordingPubClient) Delete(context.Context, api.JSONRequest, bool)
 	panic("unexpected Delete call")
 }
 
-func (client *recordingPubClient) UploadFile(_ context.Context, method string, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error) {
+func (client *recordingPubClient) CreateFile(ctx context.Context, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error) {
+	return client.uploadFile(ctx, "create", filePath, slug, title, topic, created, ttl, export)
+}
+
+func (client *recordingPubClient) UpdateFile(ctx context.Context, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error) {
+	return client.uploadFile(ctx, "update", filePath, slug, title, topic, created, ttl, export)
+}
+
+func (client *recordingPubClient) uploadFile(_ context.Context, action string, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error) {
 	client.mu.Lock()
 	client.uploadFileCalls = append(client.uploadFileCalls, recordingUploadFileCall{
-		method:   method,
+		action:   action,
 		filePath: filePath,
 		slug:     slug,
 		title:    title,

@@ -4,6 +4,8 @@
 
 `post` is a cross-platform CLI for creating short links and uploading text, files, clipboard content, or piped input to a [Post-compatible server](https://github.com/mirtlecn/post).
 
+Current releases target the post-go management API, which uses authenticated `POST /create`, `POST /update`, `POST /query`, and `POST /delete` action endpoints.
+
 ## Features
 
 - Native CLI binaries for Linux, macOS, and Windows

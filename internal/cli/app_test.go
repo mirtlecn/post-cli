@@ -3,7 +3,6 @@ package cli
 import (
 	"bytes"
 	"context"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -97,8 +96,8 @@ func TestParseNewOptionsSupportsCombinedBooleanFlags(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseNewOptions returned error: %v", err)
 	}
-	if options.Method != http.MethodPut {
-		t.Fatalf("unexpected method: %s", options.Method)
+	if !options.Update {
+		t.Fatal("expected update flag")
 	}
 	if !options.SkipConfirm {
 		t.Fatal("expected no-confirm flag")
@@ -231,9 +230,9 @@ content
 `)
 
 	service := post.NewService(&stubCreateClient{
-		postJSONFunc: func(_ context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
-			if method != http.MethodPost || export {
-				t.Fatalf("unexpected create call: %s export=%v", method, export)
+		postJSONFunc: func(_ context.Context, action string, payload api.JSONRequest, export bool) ([]byte, error) {
+			if action != "create" || export {
+				t.Fatalf("unexpected create call: %s export=%v", action, export)
 			}
 			if payload.Title != "Front Matter Title" || payload.Path != "front-matter-slug" {
 				t.Fatalf("unexpected payload metadata: %#v", payload)
@@ -249,7 +248,6 @@ content
 	err := app.runCreate(context.Background(), service, post.NewOptions{
 		FilePath:    filePath,
 		Type:        "text",
-		Method:      http.MethodPost,
 		SkipConfirm: true,
 	}, false, "https://example.com")
 	if err != nil {
@@ -278,7 +276,10 @@ func TestRunCreateInfersMetadataForFileUploadShortcut(t *testing.T) {
 	}
 
 	service := post.NewService(&stubCreateClient{
-		uploadFileFunc: func(_ context.Context, method string, uploadPath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error) {
+		uploadFileFunc: func(_ context.Context, action string, uploadPath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error) {
+			if action != "create" {
+				t.Fatalf("unexpected upload action: %s", action)
+			}
 			if uploadPath != filePath {
 				t.Fatalf("unexpected upload path: %s", uploadPath)
 			}
@@ -444,27 +445,38 @@ func TestHelpDoesNotRequireConfig(t *testing.T) {
 }
 
 type stubCreateClient struct {
-	postJSONFunc   func(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error)
-	uploadFileFunc func(ctx context.Context, method string, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error)
+	postJSONFunc   func(ctx context.Context, action string, payload api.JSONRequest, export bool) ([]byte, error)
+	uploadFileFunc func(ctx context.Context, action string, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error)
 }
 
-func (client *stubCreateClient) PostJSON(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
-	return client.postJSONFunc(ctx, method, payload, export)
+func (client *stubCreateClient) CreateJSON(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
+	return client.postJSONFunc(ctx, "create", payload, export)
 }
 
-func (client *stubCreateClient) Get(context.Context, api.JSONRequest, bool) ([]byte, error) {
-	panic("unexpected Get call")
+func (client *stubCreateClient) UpdateJSON(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
+	return client.postJSONFunc(ctx, "update", payload, export)
+}
+
+func (client *stubCreateClient) Query(context.Context, api.JSONRequest, bool) ([]byte, error) {
+	panic("unexpected Query call")
 }
 
 func (client *stubCreateClient) Delete(context.Context, api.JSONRequest, bool) ([]byte, error) {
 	panic("unexpected Delete call")
 }
 
-func (client *stubCreateClient) UploadFile(ctx context.Context, method string, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error) {
+func (client *stubCreateClient) CreateFile(ctx context.Context, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error) {
 	if client.uploadFileFunc == nil {
-		panic("unexpected UploadFile call")
+		panic("unexpected CreateFile call")
 	}
-	return client.uploadFileFunc(ctx, method, filePath, slug, title, topic, created, ttl, export)
+	return client.uploadFileFunc(ctx, "create", filePath, slug, title, topic, created, ttl, export)
+}
+
+func (client *stubCreateClient) UpdateFile(ctx context.Context, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error) {
+	if client.uploadFileFunc == nil {
+		panic("unexpected UpdateFile call")
+	}
+	return client.uploadFileFunc(ctx, "update", filePath, slug, title, topic, created, ttl, export)
 }
 
 type stubCreateClipboard struct{}
@@ -560,9 +572,9 @@ func TestRunTopicRefreshUsesTopicType(t *testing.T) {
 	var stdout bytes.Buffer
 	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{}, BuildInfo{})
 	service := post.NewService(&stubCreateClient{
-		postJSONFunc: func(_ context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
-			if method != http.MethodPut || payload.Path != "anime" || payload.Title != "Anime Archive" || payload.Type != "topic" || !export {
-				t.Fatalf("unexpected args: %s %#v %v", method, payload, export)
+		postJSONFunc: func(_ context.Context, action string, payload api.JSONRequest, export bool) ([]byte, error) {
+			if action != "update" || payload.Path != "anime" || payload.Title != "Anime Archive" || payload.Type != "topic" || !export {
+				t.Fatalf("unexpected args: %s %#v %v", action, payload, export)
 			}
 			return []byte(`{"path":"anime","type":"topic","title":"anime","content":"1"}`), nil
 		},
@@ -581,9 +593,9 @@ func TestRunTopicNewUsesTitleOption(t *testing.T) {
 	var stdout bytes.Buffer
 	app := NewApp(os.Stdin, &stdout, &bytes.Buffer{}, BuildInfo{})
 	service := post.NewService(&stubCreateClient{
-		postJSONFunc: func(_ context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
-			if method != http.MethodPost || payload.Path != "anime" || payload.Title != "Anime Notes" || payload.Type != "topic" || !export {
-				t.Fatalf("unexpected args: %s %#v %v", method, payload, export)
+		postJSONFunc: func(_ context.Context, action string, payload api.JSONRequest, export bool) ([]byte, error) {
+			if action != "create" || payload.Path != "anime" || payload.Title != "Anime Notes" || payload.Type != "topic" || !export {
+				t.Fatalf("unexpected args: %s %#v %v", action, payload, export)
 			}
 			return []byte(`{"path":"anime","type":"topic","title":"Anime Notes","content":"0"}`), nil
 		},

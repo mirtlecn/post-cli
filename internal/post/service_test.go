@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,26 +13,34 @@ import (
 )
 
 type stubClient struct {
-	postJSONFunc   func(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error)
-	getFunc        func(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error)
+	postJSONFunc   func(ctx context.Context, action string, payload api.JSONRequest, export bool) ([]byte, error)
+	queryFunc      func(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error)
 	deleteFunc     func(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error)
-	uploadFileFunc func(ctx context.Context, method string, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error)
+	uploadFileFunc func(ctx context.Context, action string, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error)
 }
 
-func (client *stubClient) PostJSON(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
-	return client.postJSONFunc(ctx, method, payload, export)
+func (client *stubClient) CreateJSON(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
+	return client.postJSONFunc(ctx, "create", payload, export)
 }
 
-func (client *stubClient) Get(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
-	return client.getFunc(ctx, payload, export)
+func (client *stubClient) UpdateJSON(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
+	return client.postJSONFunc(ctx, "update", payload, export)
+}
+
+func (client *stubClient) Query(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
+	return client.queryFunc(ctx, payload, export)
 }
 
 func (client *stubClient) Delete(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
 	return client.deleteFunc(ctx, payload, export)
 }
 
-func (client *stubClient) UploadFile(ctx context.Context, method string, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error) {
-	return client.uploadFileFunc(ctx, method, filePath, slug, title, topic, created, ttl, export)
+func (client *stubClient) CreateFile(ctx context.Context, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error) {
+	return client.uploadFileFunc(ctx, "create", filePath, slug, title, topic, created, ttl, export)
+}
+
+func (client *stubClient) UpdateFile(ctx context.Context, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error) {
+	return client.uploadFileFunc(ctx, "update", filePath, slug, title, topic, created, ttl, export)
 }
 
 type stubClipboard struct {
@@ -64,9 +71,9 @@ func TestNewUsesArguments(t *testing.T) {
 	stderr := &bytes.Buffer{}
 	clipboard := &stubClipboard{canWrite: true}
 	service := NewService(&stubClient{
-		postJSONFunc: func(_ context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
-			if method != http.MethodPost {
-				t.Fatalf("unexpected method: %s", method)
+		postJSONFunc: func(_ context.Context, action string, payload api.JSONRequest, export bool) ([]byte, error) {
+			if action != "create" {
+				t.Fatalf("unexpected action: %s", action)
 			}
 			if payload.URL != "hello world" {
 				t.Fatalf("unexpected url: %s", payload.URL)
@@ -84,7 +91,6 @@ func TestNewUsesArguments(t *testing.T) {
 	result, err := service.New(context.Background(), NewOptions{
 		Args:        []string{"hello", "world"},
 		Created:     "2026-03-01T08:00:00+08:00",
-		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    true,
 	})
@@ -110,7 +116,6 @@ func TestNewWritesClipboardWhenEnabled(t *testing.T) {
 
 	result, err := service.New(context.Background(), NewOptions{
 		Args:           []string{"hello"},
-		Method:         http.MethodPost,
 		SkipConfirm:    true,
 		StdinTTY:       true,
 		WriteClipboard: true,
@@ -136,7 +141,6 @@ func TestNewWritesAlignedConfirmationPreview(t *testing.T) {
 
 	ttl := 10080
 	result, err := service.New(context.Background(), NewOptions{
-		Method:        http.MethodPost,
 		TTL:           &ttl,
 		Created:       "2026-03-01 08:00:00",
 		Type:          "text",
@@ -170,7 +174,6 @@ func TestNewTruncatesLongConfirmationContent(t *testing.T) {
 	}, &stubClipboard{}, bytes.NewBuffer(nil), stderr)
 
 	result, err := service.New(context.Background(), NewOptions{
-		Method:   http.MethodPost,
 		Args:     []string{longText},
 		Type:     "text",
 		StdinTTY: true,
@@ -201,7 +204,6 @@ func TestNewAlignsMultilineConfirmationContent(t *testing.T) {
 	}, &stubClipboard{}, bytes.NewBuffer(nil), stderr)
 
 	result, err := service.New(context.Background(), NewOptions{
-		Method:   http.MethodPost,
 		Args:     []string{"line1\nline2 start\nline3 end\nline4 extra"},
 		Type:     "md2html",
 		StdinTTY: true,
@@ -243,7 +245,6 @@ func TestNewAcceptsStandardURLContent(t *testing.T) {
 	result, err := service.New(context.Background(), NewOptions{
 		Args:        []string{"https://example.com/docs"},
 		Type:        "url",
-		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    true,
 	})
@@ -268,7 +269,6 @@ func TestNewAcceptsCustomURIScheme(t *testing.T) {
 	_, err := service.New(context.Background(), NewOptions{
 		Args:        []string{"obsidian://open?vault=demo"},
 		Type:        "url",
-		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    true,
 	})
@@ -306,7 +306,6 @@ func TestNewRejectsURLWithoutScheme(t *testing.T) {
 	_, err := service.New(context.Background(), NewOptions{
 		Args:        []string{"example.com/path"},
 		Type:        "url",
-		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    true,
 	})
@@ -321,7 +320,6 @@ func TestNewRejectsURLWithInvalidScheme(t *testing.T) {
 	_, err := service.New(context.Background(), NewOptions{
 		Args:        []string{"1demo://open"},
 		Type:        "url",
-		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    true,
 	})
@@ -363,7 +361,6 @@ func TestNewUsesClipboardWhenNoArgs(t *testing.T) {
 	}, &stubClipboard{readValue: "clipboard text"}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
 
 	result, err := service.New(context.Background(), NewOptions{
-		Method:        http.MethodPost,
 		SkipConfirm:   true,
 		StdinTTY:      true,
 		ReadClipboard: true,
@@ -388,7 +385,6 @@ func TestNewUsesStdinWhenPiped(t *testing.T) {
 	}, &stubClipboard{}, bytes.NewBufferString("piped content"), bytes.NewBuffer(nil))
 
 	result, err := service.New(context.Background(), NewOptions{
-		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    false,
 	})
@@ -409,9 +405,9 @@ func TestNewUploadsFile(t *testing.T) {
 	}
 
 	service := NewService(&stubClient{
-		uploadFileFunc: func(_ context.Context, method string, uploadPath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error) {
-			if method != http.MethodPut {
-				t.Fatalf("unexpected method: %s", method)
+		uploadFileFunc: func(_ context.Context, action string, uploadPath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error) {
+			if action != "update" {
+				t.Fatalf("unexpected action: %s", action)
 			}
 			if uploadPath != filePath {
 				t.Fatalf("unexpected file path: %s", uploadPath)
@@ -442,7 +438,7 @@ func TestNewUploadsFile(t *testing.T) {
 	result, err := service.New(context.Background(), NewOptions{
 		FilePath:    filePath,
 		Type:        "file",
-		Method:      http.MethodPut,
+		Update:      true,
 		Export:      true,
 		Slug:        "demo",
 		Title:       "Demo title",
@@ -468,7 +464,6 @@ func TestNewRequiresTitleWhenTopicIsSet(t *testing.T) {
 		Args:        []string{"hello"},
 		Type:        "text",
 		Topic:       "anime",
-		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    true,
 	})
@@ -486,7 +481,6 @@ func TestNewRejectsMismatchedTopicSlug(t *testing.T) {
 		Topic:       "anime",
 		Title:       "Castle Notes",
 		Slug:        "devlog/castle-notes",
-		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    true,
 	})
@@ -497,9 +491,9 @@ func TestNewRejectsMismatchedTopicSlug(t *testing.T) {
 
 func TestCreateTopicUsesTopicType(t *testing.T) {
 	service := NewService(&stubClient{
-		postJSONFunc: func(_ context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
-			if method != http.MethodPost || !export {
-				t.Fatalf("unexpected args: %s %v", method, export)
+		postJSONFunc: func(_ context.Context, action string, payload api.JSONRequest, export bool) ([]byte, error) {
+			if action != "create" || !export {
+				t.Fatalf("unexpected args: %s %v", action, export)
 			}
 			if payload.Path != "anime" || payload.Title != "Anime Notes" || payload.Type != "topic" {
 				t.Fatalf("unexpected payload: %#v", payload)
@@ -519,9 +513,9 @@ func TestCreateTopicUsesTopicType(t *testing.T) {
 
 func TestNewCreatesTopicWithoutContent(t *testing.T) {
 	service := NewService(&stubClient{
-		postJSONFunc: func(_ context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
-			if method != http.MethodPost || export {
-				t.Fatalf("unexpected args: %s %v", method, export)
+		postJSONFunc: func(_ context.Context, action string, payload api.JSONRequest, export bool) ([]byte, error) {
+			if action != "create" || export {
+				t.Fatalf("unexpected args: %s %v", action, export)
 			}
 			if payload.Path != "anime" || payload.Title != "Anime Notes" || payload.Type != "topic" || payload.URL != "" {
 				t.Fatalf("unexpected payload: %#v", payload)
@@ -534,7 +528,6 @@ func TestNewCreatesTopicWithoutContent(t *testing.T) {
 		Type:        "topic",
 		Slug:        "anime",
 		Title:       "Anime Notes",
-		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    true,
 	})
@@ -551,7 +544,6 @@ func TestNewRejectsTopicWithoutSlug(t *testing.T) {
 
 	_, err := service.New(context.Background(), NewOptions{
 		Type:        "topic",
-		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    true,
 	})
@@ -567,7 +559,6 @@ func TestNewRejectsTopicContent(t *testing.T) {
 		Type:        "topic",
 		Slug:        "anime",
 		Args:        []string{"# hi"},
-		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    true,
 	})
@@ -582,7 +573,6 @@ func TestNewRejectsTopicClipboardRead(t *testing.T) {
 	_, err := service.New(context.Background(), NewOptions{
 		Type:          "topic",
 		Slug:          "anime",
-		Method:        http.MethodPost,
 		SkipConfirm:   true,
 		StdinTTY:      true,
 		ReadClipboard: true,
@@ -600,7 +590,6 @@ func TestNewRejectsTopicTTL(t *testing.T) {
 		Type:        "topic",
 		Slug:        "anime",
 		TTL:         &ttl,
-		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    true,
 	})
@@ -611,7 +600,7 @@ func TestNewRejectsTopicTTL(t *testing.T) {
 
 func TestListTopicsUsesTopicType(t *testing.T) {
 	service := NewService(&stubClient{
-		getFunc: func(_ context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
+		queryFunc: func(_ context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
 			if payload.Path != "anime" || payload.Type != "topic" || !export {
 				t.Fatalf("unexpected args: %#v %v", payload, export)
 			}
@@ -630,9 +619,9 @@ func TestListTopicsUsesTopicType(t *testing.T) {
 
 func TestRefreshTopicUsesTopicType(t *testing.T) {
 	service := NewService(&stubClient{
-		postJSONFunc: func(_ context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error) {
-			if method != http.MethodPut || payload.Path != "anime" || payload.Title != "Anime Archive" || payload.Type != "topic" || !export {
-				t.Fatalf("unexpected args: %s %#v %v", method, payload, export)
+		postJSONFunc: func(_ context.Context, action string, payload api.JSONRequest, export bool) ([]byte, error) {
+			if action != "update" || payload.Path != "anime" || payload.Title != "Anime Archive" || payload.Type != "topic" || !export {
+				t.Fatalf("unexpected args: %s %#v %v", action, payload, export)
 			}
 			return []byte(`{"path":"anime","type":"topic","title":"anime","content":"2"}`), nil
 		},
@@ -675,7 +664,6 @@ func TestNewReturnsClipboardWriteWarning(t *testing.T) {
 
 	result, err := service.New(context.Background(), NewOptions{
 		Args:           []string{"hello"},
-		Method:         http.MethodPost,
 		SkipConfirm:    true,
 		StdinTTY:       true,
 		WriteClipboard: true,
@@ -698,7 +686,6 @@ func TestNewSkipsClipboardWriteWhenUnavailable(t *testing.T) {
 
 	result, err := service.New(context.Background(), NewOptions{
 		Args:        []string{"hello"},
-		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    true,
 	})
@@ -720,7 +707,6 @@ func TestNewReturnsClipboardUnavailableWarningWhenWriteIsRequested(t *testing.T)
 
 	result, err := service.New(context.Background(), NewOptions{
 		Args:           []string{"hello"},
-		Method:         http.MethodPost,
 		SkipConfirm:    true,
 		StdinTTY:       true,
 		WriteClipboard: true,
@@ -738,7 +724,6 @@ func TestNewFailsWhenClipboardReadFails(t *testing.T) {
 	service := NewService(&stubClient{}, &stubClipboard{readErr: errors.New("clipboard unavailable")}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
 
 	_, err := service.New(context.Background(), NewOptions{
-		Method:        http.MethodPost,
 		SkipConfirm:   true,
 		StdinTTY:      true,
 		ReadClipboard: true,
@@ -752,7 +737,6 @@ func TestNewFailsWhenClipboardReadNotEnabled(t *testing.T) {
 	service := NewService(&stubClient{}, &stubClipboard{}, bytes.NewBuffer(nil), bytes.NewBuffer(nil))
 
 	_, err := service.New(context.Background(), NewOptions{
-		Method:      http.MethodPost,
 		SkipConfirm: true,
 		StdinTTY:    true,
 	})
@@ -763,7 +747,7 @@ func TestNewFailsWhenClipboardReadNotEnabled(t *testing.T) {
 
 func TestListFormatsJSON(t *testing.T) {
 	service := NewService(&stubClient{
-		getFunc: func(_ context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
+		queryFunc: func(_ context.Context, payload api.JSONRequest, export bool) ([]byte, error) {
 			if payload.Path != "demo" || payload.Type != "" || !export {
 				t.Fatalf("unexpected args: %#v %v", payload, export)
 			}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -127,11 +126,6 @@ func (app *App) runPub(
 		return app.runPubDirectory(ctx, service, options, stdinTTY, host, topic)
 	}
 
-	method := http.MethodPost
-	if options.Update {
-		method = http.MethodPut
-	}
-
 	return app.runCreate(ctx, service, post.NewOptions{
 		FilePath:    options.FilePath,
 		Slug:        options.Slug,
@@ -139,7 +133,7 @@ func (app *App) runPub(
 		Topic:       topic,
 		TTL:         options.TTL,
 		Type:        "md2html",
-		Method:      method,
+		Update:      options.Update,
 		SkipConfirm: options.SkipConfirm,
 	}, stdinTTY, host)
 }
@@ -208,7 +202,6 @@ func (app *App) runPubDirectory(
 			Slug:        plan.TopicPath,
 			Title:       plan.TopicTitle,
 			Type:        "topic",
-			Method:      http.MethodPost,
 			SkipConfirm: true,
 		})
 		if err != nil {
@@ -216,12 +209,7 @@ func (app *App) runPubDirectory(
 		}
 	}
 
-	method := http.MethodPost
-	if options.Update {
-		method = http.MethodPut
-	}
-
-	if err := app.uploadPubDirectoryEntries(ctx, service, plan.Entries, plan.TopicPath, options.TTL, method); err != nil {
+	if err := app.uploadPubDirectoryEntries(ctx, service, plan.Entries, plan.TopicPath, options.TTL, options.Update); err != nil {
 		return err
 	}
 
@@ -239,7 +227,7 @@ func (app *App) uploadPubDirectoryEntries(
 	entries []pubDirectoryEntry,
 	topicPath string,
 	ttl *int,
-	method string,
+	update bool,
 ) error {
 	workerCount := pubDirectoryConcurrency
 	if len(entries) < workerCount {
@@ -261,7 +249,7 @@ func (app *App) uploadPubDirectoryEntries(
 		go func() {
 			defer workers.Done()
 			for entry := range entryCh {
-				if err := uploadPubDirectoryEntry(ctx, service, entry, topicPath, ttl, method); err != nil {
+				if err := uploadPubDirectoryEntry(ctx, service, entry, topicPath, ttl, update); err != nil {
 					select {
 					case errCh <- err:
 						cancel()
@@ -303,9 +291,9 @@ func uploadPubDirectoryEntry(
 	entry pubDirectoryEntry,
 	topicPath string,
 	ttl *int,
-	method string,
+	update bool,
 ) error {
-	createOptions, err := buildPubDirectoryCreateOptions(entry, ttl, method)
+	createOptions, err := buildPubDirectoryCreateOptions(entry, ttl, update)
 	if err != nil {
 		return err
 	}
@@ -320,12 +308,12 @@ func uploadPubDirectoryEntry(
 	return err
 }
 
-func buildPubDirectoryCreateOptions(entry pubDirectoryEntry, ttl *int, method string) (post.NewOptions, error) {
+func buildPubDirectoryCreateOptions(entry pubDirectoryEntry, ttl *int, update bool) (post.NewOptions, error) {
 	createOptions := post.NewOptions{
 		FilePath:    entry.FilePath,
 		TTL:         ttl,
 		Type:        entry.Type,
-		Method:      method,
+		Update:      update,
 		SkipConfirm: true,
 	}
 
@@ -429,7 +417,7 @@ func resolvePubDirectoryEntrySlug(entry pubDirectoryEntry) (string, error) {
 		return entry.ResolvedSlug, nil
 	}
 
-	createOptions, err := buildPubDirectoryCreateOptions(entry, nil, http.MethodPost)
+	createOptions, err := buildPubDirectoryCreateOptions(entry, nil, false)
 	if err != nil {
 		return "", err
 	}

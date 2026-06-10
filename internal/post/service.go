@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"regexp"
@@ -17,10 +16,12 @@ import (
 )
 
 type APIClient interface {
-	PostJSON(ctx context.Context, method string, payload api.JSONRequest, export bool) ([]byte, error)
-	Get(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error)
+	CreateJSON(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error)
+	UpdateJSON(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error)
+	Query(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error)
 	Delete(ctx context.Context, payload api.JSONRequest, export bool) ([]byte, error)
-	UploadFile(ctx context.Context, method string, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error)
+	CreateFile(ctx context.Context, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error)
+	UpdateFile(ctx context.Context, filePath string, slug string, title string, topic string, created string, ttl *int, export bool) ([]byte, error)
 }
 
 type Service struct {
@@ -43,7 +44,7 @@ type NewOptions struct {
 	WriteClipboardSet bool
 	FilePath          string
 	Type              string
-	Method            string
+	Update            bool
 	Export            bool
 	Args              []string
 	StdinTTY          bool
@@ -102,17 +103,11 @@ func (service *Service) New(ctx context.Context, options NewOptions) (Result, er
 
 	var responseBody []byte
 	if options.Type == "file" {
-		responseBody, err = service.client.UploadFile(
-			ctx,
-			options.Method,
-			options.FilePath,
-			options.Slug,
-			options.Title,
-			options.Topic,
-			options.Created,
-			options.TTL,
-			options.Export,
-		)
+		if options.Update {
+			responseBody, err = service.client.UpdateFile(ctx, options.FilePath, options.Slug, options.Title, options.Topic, options.Created, options.TTL, options.Export)
+		} else {
+			responseBody, err = service.client.CreateFile(ctx, options.FilePath, options.Slug, options.Title, options.Topic, options.Created, options.TTL, options.Export)
+		}
 	} else {
 		payload := api.JSONRequest{
 			Path:    options.Slug,
@@ -123,7 +118,11 @@ func (service *Service) New(ctx context.Context, options NewOptions) (Result, er
 			TTL:     options.TTL,
 			Type:    requestType,
 		}
-		responseBody, err = service.client.PostJSON(ctx, options.Method, payload, options.Export)
+		if options.Update {
+			responseBody, err = service.client.UpdateJSON(ctx, payload, options.Export)
+		} else {
+			responseBody, err = service.client.CreateJSON(ctx, payload, options.Export)
+		}
 	}
 	if err != nil {
 		return Result{}, err
@@ -173,11 +172,18 @@ func (service *Service) createTopicFromNew(ctx context.Context, options NewOptio
 		}
 	}
 
-	responseBody, err := service.client.PostJSON(ctx, options.Method, api.JSONRequest{
+	payload := api.JSONRequest{
 		Path:  options.Slug,
 		Title: options.Title,
 		Type:  "topic",
-	}, options.Export)
+	}
+	var responseBody []byte
+	var err error
+	if options.Update {
+		responseBody, err = service.client.UpdateJSON(ctx, payload, options.Export)
+	} else {
+		responseBody, err = service.client.CreateJSON(ctx, payload, options.Export)
+	}
 	if err != nil {
 		return Result{}, err
 	}
@@ -215,7 +221,7 @@ func (service *Service) createTopicFromNew(ctx context.Context, options NewOptio
 }
 
 func (service *Service) List(ctx context.Context, path string, export bool) (string, error) {
-	body, err := service.client.Get(ctx, api.JSONRequest{Path: path}, export)
+	body, err := service.client.Query(ctx, api.JSONRequest{Path: path}, export)
 	if err != nil {
 		return "", err
 	}
@@ -239,7 +245,7 @@ func (service *Service) ListTopics(ctx context.Context, path string, export bool
 	if path != "" {
 		payload.Path = path
 	}
-	body, err := service.client.Get(ctx, payload, export)
+	body, err := service.client.Query(ctx, payload, export)
 	if err != nil {
 		return "", err
 	}
@@ -286,7 +292,7 @@ func topicExistsFromJSON(output string, path string) (bool, error) {
 }
 
 func (service *Service) CreateTopic(ctx context.Context, path string, title string, export bool) (string, error) {
-	body, err := service.client.PostJSON(ctx, http.MethodPost, api.JSONRequest{
+	body, err := service.client.CreateJSON(ctx, api.JSONRequest{
 		Path:  path,
 		Title: title,
 		Type:  "topic",
@@ -298,7 +304,7 @@ func (service *Service) CreateTopic(ctx context.Context, path string, title stri
 }
 
 func (service *Service) RefreshTopic(ctx context.Context, path string, title string, export bool) (string, error) {
-	body, err := service.client.PostJSON(ctx, http.MethodPut, api.JSONRequest{
+	body, err := service.client.UpdateJSON(ctx, api.JSONRequest{
 		Path:  path,
 		Title: title,
 		Type:  "topic",
@@ -430,7 +436,7 @@ func writeConfirmPreview(writer io.Writer, label string, content string, options
 	if options.Export {
 		writeConfirmField(writer, "export", "full response")
 	}
-	if options.Method == http.MethodPut {
+	if options.Update {
 		writeConfirmField(writer, "mode", "overwrite")
 	}
 	fmt.Fprintln(writer)

@@ -37,7 +37,7 @@ Options for 'new':
   -p, --topic <topic>            Attach item to a topic (requires --title)
   --created <time>               Set created time and send it to the API (auto-inferred for file input)
   -t, --ttl <minutes>            Expiration time in minutes (0 means never)
-  -u, --update                   Overwrite if slug already exists (uses PUT)
+  -u, --update                   Overwrite if slug already exists
   -y, --no-confirm               Skip confirmation prompt
   -x, --export                   Return full create/update response
   -r, --read-clipboard           Read content from clipboard when no text/-f/stdin
