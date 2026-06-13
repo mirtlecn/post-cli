@@ -493,7 +493,7 @@ func (clipboard *stubCreateClipboard) WriteText(string) error {
 	return nil
 }
 
-func TestParseShortcutOptionsUsesDefaultTTL(t *testing.T) {
+func TestParseShortcutOptionsLeavesTTLUnsetByDefault(t *testing.T) {
 	options, err := parseShortcutOptions("md", []string{"hello"})
 	if err != nil {
 		t.Fatalf("parseShortcutOptions returned error: %v", err)
@@ -502,8 +502,8 @@ func TestParseShortcutOptionsUsesDefaultTTL(t *testing.T) {
 	if options.Type != "md2html" {
 		t.Fatalf("unexpected type: %s", options.Type)
 	}
-	if options.TTL == nil || *options.TTL != 10080 {
-		t.Fatalf("unexpected ttl: %v", options.TTL)
+	if options.TTL != nil {
+		t.Fatalf("expected ttl to stay nil for shortcut command, got: %v", options.TTL)
 	}
 	if !options.ReadClipboard {
 		t.Fatal("expected read clipboard enabled by default for shortcut command")
@@ -621,7 +621,7 @@ func TestParseShortcutOptionsAllowsTTLOverride(t *testing.T) {
 	}
 }
 
-func TestParseShortcutOptionsSkipsDefaultTTLWhenTopicIsSet(t *testing.T) {
+func TestParseShortcutOptionsLeavesTTLUnsetWhenTopicIsSet(t *testing.T) {
 	options, err := parseShortcutOptions("text", []string{"-p", "anime", "-i", "Quick Note", "hello"})
 	if err != nil {
 		t.Fatalf("parseShortcutOptions returned error: %v", err)

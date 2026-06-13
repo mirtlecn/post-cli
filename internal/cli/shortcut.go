@@ -7,42 +7,35 @@ import (
 )
 
 type shortcutCommand struct {
-	Type              string
-	DefaultTTLMinutes int
-	AllowFileContent  bool
-	RequireFilePath   bool
+	Type             string
+	AllowFileContent bool
+	RequireFilePath  bool
 }
 
 var shortcutCommands = map[string]shortcutCommand{
 	"md": {
-		Type:              "md2html",
-		DefaultTTLMinutes: 10080,
-		AllowFileContent:  true,
+		Type:             "md2html",
+		AllowFileContent: true,
 	},
 	"qr": {
-		Type:              "qrcode",
-		DefaultTTLMinutes: 10080,
-		AllowFileContent:  true,
+		Type:             "qrcode",
+		AllowFileContent: true,
 	},
 	"file": {
-		Type:              "file",
-		DefaultTTLMinutes: 10080,
-		RequireFilePath:   true,
+		Type:            "file",
+		RequireFilePath: true,
 	},
 	"html": {
-		Type:              "html",
-		DefaultTTLMinutes: 10080,
-		AllowFileContent:  true,
+		Type:             "html",
+		AllowFileContent: true,
 	},
 	"text": {
-		Type:              "text",
-		DefaultTTLMinutes: 10080,
-		AllowFileContent:  true,
+		Type:             "text",
+		AllowFileContent: true,
 	},
 	"url": {
-		Type:              "url",
-		DefaultTTLMinutes: 10080,
-		AllowFileContent:  true,
+		Type:             "url",
+		AllowFileContent: true,
 	},
 }
 
@@ -62,10 +55,6 @@ func parseShortcutOptions(command string, args []string) (post.NewOptions, error
 	}
 
 	options.Type = definition.Type
-	if options.TTL == nil && options.Topic == "" {
-		defaultTTL := definition.DefaultTTLMinutes
-		options.TTL = &defaultTTL
-	}
 
 	if definition.RequireFilePath {
 		if options.ReadClipboard {

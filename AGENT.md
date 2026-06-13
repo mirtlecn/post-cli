@@ -114,7 +114,7 @@ Implementation constraints:
 
 - Explicit user input must win over inferred values.
 - `post file` accepts only file paths and does not read stdin or clipboard.
-- Shortcut commands default to `ttl=10080` unless overridden with `-t`.
+- Shortcut commands leave TTL unset; `-t` is required to send one.
 - Shortcut clipboard defaults:
   - read is enabled by default for `md`, `qr`, `html`, `text`, and `url`
   - write is enabled by default for shortcut commands

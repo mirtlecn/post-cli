@@ -4,13 +4,13 @@ const helpText = `post - paste & short-URL manager
 
 Usage:
   post new [opts] <text...>    Upload text
-  post md [opts] [text...]     Upload Markdown as HTML (default ttl: 10080)
-  post qr [opts] [text...]     Upload text as QR code (default ttl: 10080)
-  post file [opts] <file>      Upload a file path directly (default ttl: 10080)
+  post md [opts] [text...]     Upload Markdown as HTML
+  post qr [opts] [text...]     Upload text as QR code
+  post file [opts] <file>      Upload a file path directly
   post pub [opts] <path>       Publish a Markdown file or folder with inferred metadata
-  post html [opts] [text...]   Upload HTML content (default ttl: 10080)
-  post text [opts] [text...]   Upload text content (default ttl: 10080)
-  post url [opts] [text...]    Upload URL content (default ttl: 10080)
+  post html [opts] [text...]   Upload HTML content
+  post text [opts] [text...]   Upload text content
+  post url [opts] [text...]    Upload URL content
   post topic new <topic>       Create a topic
   post topic ls                List all topics
   post topic ls <topic>        Show one topic
@@ -60,7 +60,7 @@ Options for shortcut commands:
   -i, --title <title>            Set item title (auto-inferred for file input)
   -p, --topic <topic>            Attach item to a topic (requires --title)
   --created <time>               Set created time and send it to the API (auto-inferred for file input)
-  -t, --ttl <minutes>            Override default 10080-minute expiration
+  -t, --ttl <minutes>            Expiration time in minutes (0 means never)
   -u, --update                   Overwrite if slug already exists
   -y, --no-confirm               Skip confirmation prompt
   -x, --export                   Return full create/update response

@@ -185,7 +185,7 @@ _post() {
     '(-i --title)'{-i,--title}'[Set item title]:title: '
     '(-p --topic)'{-p,--topic}'[Attach item to a topic]:topic:_post_topic_names'
     '(--created)'--created'[Set created time and send it to the API]:time: '
-    '(-t --ttl)'{-t,--ttl}'[Override expiration time in minutes]:minutes: '
+    '(-t --ttl)'{-t,--ttl}'[Expiration time in minutes (0 means never)]:minutes: '
     '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]'
     '(-u --update)'{-u,--update}'[Overwrite if slug already exists]'
     '(-x --export)'{-x,--export}'[Return full create/update response]'
@@ -223,7 +223,7 @@ _post() {
         '(-i --title)'{-i,--title}'[Set item title]:title: ' \
         '(-p --topic)'{-p,--topic}'[Attach item to a topic]:topic:_post_topic_names' \
         '(--created)'--created'[Set created time and send it to the API]:time: ' \
-        '(-t --ttl)'{-t,--ttl}'[Override expiration time in minutes]:minutes: ' \
+        '(-t --ttl)'{-t,--ttl}'[Expiration time in minutes (0 means never)]:minutes: ' \
         '(-u --update)'{-u,--update}'[Overwrite if slug already exists]' \
         '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]' \
         '(-x --export)'{-x,--export}'[Return full create/update response]' \
