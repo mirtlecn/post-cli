@@ -332,6 +332,9 @@ func TestBashCompletionIncludesClipboardFlagsAndFilePathCompletion(t *testing.T)
 	if !strings.Contains(output, "_post_topic_names()") || !strings.Contains(output, "-p|--topic)") {
 		t.Fatalf("dynamic topic completion missing in bash completion: %q", output)
 	}
+	if !strings.Contains(output, "COMPREPLY=($(compgen -W \"-s --slug -i --title -p --topic -t --ttl -u --update -y --no-confirm\" -- \"${current}\"))") {
+		t.Fatalf("pub topic option missing in bash completion: %q", output)
+	}
 	if !strings.Contains(output, "COMPREPLY=($(compgen -W \"new ls refresh rm\" -- \"${current}\"))") {
 		t.Fatalf("topic subcommand completion missing in bash completion: %q", output)
 	}
@@ -373,6 +376,9 @@ func TestPowerShellCompletionIncludesClipboardFlagsAndFilePathCompletion(t *test
 	if !strings.Contains(output, "function Get-PostTopicNames") || !strings.Contains(output, "$previous -in @('-p', '--topic')") {
 		t.Fatalf("dynamic topic completion missing in powershell completion: %q", output)
 	}
+	if !strings.Contains(output, "$pubOptions = @('-s', '--slug', '-i', '--title', '-p', '--topic', '-t', '--ttl', '-u', '--update', '-y', '--no-confirm')") {
+		t.Fatalf("pub topic option missing in powershell completion: %q", output)
+	}
 	if !strings.Contains(output, "$fileOptions = @(") || !strings.Contains(output, "'file' {\n            if ($wordToComplete -and $wordToComplete.StartsWith('-')) {") {
 		t.Fatalf("file path completion missing in powershell completion: %q", output)
 	}
@@ -400,6 +406,9 @@ func TestCompletionPrioritizesFrequentCommands(t *testing.T) {
 	}
 	if !strings.Contains(output, "_post_topic_names()") || !strings.Contains(output, ":topic:_post_topic_names") {
 		t.Fatalf("dynamic topic completion missing in zsh completion: %q", output)
+	}
+	if !strings.Contains(output, "'(-p --topic)'{-p,--topic}'[Publish into topic]:topic:_post_topic_names'") {
+		t.Fatalf("pub topic option missing in zsh completion: %q", output)
 	}
 	if !strings.Contains(output, "'*:topic:_post_topic_names'") {
 		t.Fatalf("topic rm dynamic completion missing in zsh completion: %q", output)
@@ -439,7 +448,7 @@ func TestHelpDoesNotRequireConfig(t *testing.T) {
 	if !strings.Contains(stdout.String(), "--read-clipboard") || !strings.Contains(stdout.String(), "post new -r") {
 		t.Fatalf("help output missing clipboard usage: %q", stdout.String())
 	}
-	if !strings.Contains(stdout.String(), "post topic new <topic>") || !strings.Contains(stdout.String(), "post pub [opts] <path>") || !strings.Contains(stdout.String(), "--type <mode>") || !strings.Contains(stdout.String(), "--created <time>") || !strings.Contains(stdout.String(), "-y, --no-confirm") || !strings.Contains(stdout.String(), "POST_PUB_TOPIC") || !strings.Contains(stdout.String(), "-u, --update") {
+	if !strings.Contains(stdout.String(), "post topic new <topic>") || !strings.Contains(stdout.String(), "post pub [opts] <path>") || !strings.Contains(stdout.String(), "--type <mode>") || !strings.Contains(stdout.String(), "--created <time>") || !strings.Contains(stdout.String(), "-y, --no-confirm") || !strings.Contains(stdout.String(), "-p, --topic <topic>") || !strings.Contains(stdout.String(), "POST_PUB_TOPIC") || !strings.Contains(stdout.String(), "-u, --update") {
 		t.Fatalf("help output missing topic/type usage: %q", stdout.String())
 	}
 }

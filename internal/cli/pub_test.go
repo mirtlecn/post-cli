@@ -19,12 +19,12 @@ import (
 )
 
 func TestParsePubOptions(t *testing.T) {
-	options, err := parsePubOptions([]string{"-t", "60", "-s", "note", "-i", "Title", "-u", "-y", "./note.md"})
+	options, err := parsePubOptions([]string{"-t", "60", "-s", "note", "-i", "Title", "-p", "notes", "-u", "-y", "./note.md"})
 	if err != nil {
 		t.Fatalf("parsePubOptions returned error: %v", err)
 	}
 
-	if options.FilePath != "./note.md" || options.Slug != "note" || options.Title != "Title" {
+	if options.FilePath != "./note.md" || options.Slug != "note" || options.Title != "Title" || options.Topic != "notes" {
 		t.Fatalf("unexpected options: %#v", options)
 	}
 	if options.TTL == nil || *options.TTL != 60 {
@@ -93,6 +93,57 @@ created: 2026-03-01
 	})
 	if err != nil {
 		t.Fatalf("runPub returned error: %v", err)
+	}
+}
+
+func TestRunPubTopicOptionOverridesConfigAndCreatesMissingTopic(t *testing.T) {
+	filePath := writeMarkdownTestFile(t, "# Hello Topic\n")
+	client := &recordingPubClient{}
+	service := post.NewService(client, &stubCreateClipboard{}, bytes.NewBuffer(nil), &bytes.Buffer{})
+	app := NewApp(os.Stdin, &bytes.Buffer{}, &bytes.Buffer{}, BuildInfo{})
+
+	err := app.runPub(context.Background(), service, []string{"-y", "-p", "manual-topic", filePath}, false, "https://example.com", config.Config{
+		Host:     "https://example.com",
+		Token:    "demo",
+		PubTopic: "env-topic",
+	})
+	if err != nil {
+		t.Fatalf("runPub returned error: %v", err)
+	}
+	if len(client.queryCalls) != 1 || client.queryCalls[0].Path != "manual-topic" || client.queryCalls[0].Type != "topic" {
+		t.Fatalf("unexpected topic lookup: %#v", client.queryCalls)
+	}
+	if len(client.postJSONCalls) != 2 {
+		t.Fatalf("unexpected post JSON call count: %d", len(client.postJSONCalls))
+	}
+	topicCall := client.postJSONCalls[0]
+	if topicCall.action != "create" || topicCall.payload.Path != "manual-topic" || topicCall.payload.Type != "topic" {
+		t.Fatalf("unexpected topic creation call: %#v", topicCall)
+	}
+	itemCall := client.postJSONCalls[1]
+	if itemCall.payload.Topic != "manual-topic" {
+		t.Fatalf("expected explicit topic to override config: %#v", itemCall)
+	}
+	if itemCall.payload.Topic == "env-topic" {
+		t.Fatalf("did not expect configured topic to be used: %#v", itemCall)
+	}
+}
+
+func TestRunPubTopicOptionWorksWithoutConfiguredTopic(t *testing.T) {
+	filePath := writeMarkdownTestFile(t, "# Hello Topic\n")
+	client := &recordingPubClient{}
+	service := post.NewService(client, &stubCreateClipboard{}, bytes.NewBuffer(nil), &bytes.Buffer{})
+	app := NewApp(os.Stdin, &bytes.Buffer{}, &bytes.Buffer{}, BuildInfo{})
+
+	err := app.runPub(context.Background(), service, []string{"-y", "-p", "manual-topic", filePath}, false, "https://example.com", config.Config{
+		Host:  "https://example.com",
+		Token: "demo",
+	})
+	if err != nil {
+		t.Fatalf("runPub returned error: %v", err)
+	}
+	if len(client.postJSONCalls) != 2 || client.postJSONCalls[1].payload.Topic != "manual-topic" {
+		t.Fatalf("unexpected publish calls: %#v", client.postJSONCalls)
 	}
 }
 
@@ -191,7 +242,7 @@ func TestRunPubFailsWithoutTopic(t *testing.T) {
 		Host:  "https://example.com",
 		Token: "demo",
 	})
-	if err == nil || err.Error() != "POST_PUB_TOPIC or pub_topic must be set for post pub" {
+	if err == nil || err.Error() != "-p/--topic, POST_PUB_TOPIC, or pub_topic must be set for post pub" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -352,6 +403,60 @@ func TestRunPubDirectoryUsesCustomChildSlug(t *testing.T) {
 	}
 	if len(client.postJSONCalls) == 0 || client.postJSONCalls[0].payload.Path != "notes/week-12" {
 		t.Fatalf("unexpected topic path: %#v", client.postJSONCalls)
+	}
+}
+
+func TestRunPubDirectoryWithExplicitTopicDoesNotCreateChildTopic(t *testing.T) {
+	rootDir := t.TempDir()
+	filePath := filepath.Join(rootDir, "index.md")
+	if err := os.WriteFile(filePath, []byte("# Home\n"), 0o644); err != nil {
+		t.Fatalf("write markdown: %v", err)
+	}
+
+	client := &recordingPubClient{}
+	service := post.NewService(client, &stubCreateClipboard{}, bytes.NewBuffer(nil), &bytes.Buffer{})
+	app := NewApp(os.Stdin, &bytes.Buffer{}, &bytes.Buffer{}, BuildInfo{})
+	err := app.runPub(context.Background(), service, []string{"-y", "-p", "manual-topic", rootDir}, false, "https://example.com", config.Config{
+		Host:     "https://example.com",
+		Token:    "demo",
+		PubTopic: "env-topic",
+	})
+	if err != nil {
+		t.Fatalf("runPub returned error: %v", err)
+	}
+	if len(client.queryCalls) != 1 || client.queryCalls[0].Path != "manual-topic" {
+		t.Fatalf("unexpected topic lookup: %#v", client.queryCalls)
+	}
+	if len(client.postJSONCalls) != 2 {
+		t.Fatalf("unexpected post JSON call count: %d", len(client.postJSONCalls))
+	}
+	topicCall := client.postJSONCalls[0]
+	if topicCall.payload.Path != "manual-topic" || topicCall.payload.Type != "topic" {
+		t.Fatalf("unexpected topic creation call: %#v", topicCall)
+	}
+	itemCall := client.postJSONCalls[1]
+	if itemCall.payload.Path != "manual-topic/home" {
+		t.Fatalf("expected directory item to publish directly under explicit topic: %#v", itemCall)
+	}
+	if strings.Contains(itemCall.payload.Path, "env-topic/"+filepath.Base(rootDir)) {
+		t.Fatalf("did not expect child topic path under configured topic: %#v", itemCall)
+	}
+}
+
+func TestRunPubDirectoryRejectsSlugWithExplicitTopic(t *testing.T) {
+	rootDir := t.TempDir()
+	filePath := filepath.Join(rootDir, "index.md")
+	if err := os.WriteFile(filePath, []byte("# Home\n"), 0o644); err != nil {
+		t.Fatalf("write markdown: %v", err)
+	}
+
+	app := NewApp(os.Stdin, &bytes.Buffer{}, &bytes.Buffer{}, BuildInfo{})
+	err := app.runPub(context.Background(), post.NewService(&recordingPubClient{}, &stubCreateClipboard{}, bytes.NewBuffer(nil), &bytes.Buffer{}), []string{"-y", "-p", "manual-topic", "-s", "child", rootDir}, false, "https://example.com", config.Config{
+		Host:  "https://example.com",
+		Token: "demo",
+	})
+	if err == nil || err.Error() != "--slug is not supported for directory publish when --topic is set" {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

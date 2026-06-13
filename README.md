@@ -112,13 +112,15 @@ This applies to:
 
 `post pub` still additionally infers:
 
-- `topic` from `POST_PUB_TOPIC`, then config `pub_topic`
+- `topic` from `--topic`, then `POST_PUB_TOPIC`, then config `pub_topic`
 
 `post pub` fails when no topic source is configured.
+When `--topic` is provided and the topic does not exist, `post pub` creates it before uploading.
 
 When the path is a directory, `post pub`:
 
-- creates a child topic at `<pub_topic>/<folder_name-or-slug>`
+- without `--topic`, creates a child topic at `<pub_topic>/<folder_name-or-slug>`
+- with `--topic`, uploads into that topic directly without creating a child topic
 - uploads `.md` files as `md2html`
 - uploads other non-hidden files as file uploads
 - skips hidden files and hidden directories
@@ -145,7 +147,9 @@ echo "piped text" | post
 post md -f README.md
 echo '# Hello' | post md
 post pub ./note.md
+post pub -p notes ./note.md
 post pub ./notes
+post pub -p notes ./notes
 post pub -yu ./notes
 post qr https://example.com
 post html '<h1>Hello</h1>'

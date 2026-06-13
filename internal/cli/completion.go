@@ -79,7 +79,7 @@ _post_completion() {
       ;;
     pub)
       if [[ "${current}" == -* ]]; then
-        COMPREPLY=($(compgen -W "-s --slug -i --title -t --ttl -u --update -y --no-confirm" -- "${current}"))
+        COMPREPLY=($(compgen -W "-s --slug -i --title -p --topic -t --ttl -u --update -y --no-confirm" -- "${current}"))
       else
         COMPREPLY=($(compgen -f -- "${current}"))
       fi
@@ -208,8 +208,9 @@ _post() {
       shift words
       (( CURRENT -= 1 ))
       _arguments -s \
-        '(-s --slug)'{-s,--slug}'[Override front matter slug]:slug: ' \
+        '(-s --slug)'{-s,--slug}'[Override item slug or child topic slug]:slug: ' \
         '(-i --title)'{-i,--title}'[Override inferred title or child topic title]:title: ' \
+        '(-p --topic)'{-p,--topic}'[Publish into topic]:topic:_post_topic_names' \
         '(-t --ttl)'{-t,--ttl}'[Optional TTL override]:minutes: ' \
         '(-u --update)'{-u,--update}'[Overwrite if slug already exists]' \
         '(-y --no-confirm)'{-y,--no-confirm}'[Skip confirmation prompt]' \
@@ -316,7 +317,7 @@ const powerShellCompletion = `Register-ArgumentCompleter -Native -CommandName po
     $newOptions = @('-f', '--file', '-s', '--slug', '-i', '--title', '-p', '--topic', '--created', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-r', '--read-clipboard', '-w', '--write-clipboard', '-c', '--convert', '--type')
     $shortcutOptions = @('-f', '--file', '-s', '--slug', '-i', '--title', '-p', '--topic', '--created', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-r', '--read-clipboard', '-w', '--write-clipboard')
     $fileOptions = @('-f', '--file', '-s', '--slug', '-i', '--title', '-p', '--topic', '--created', '-t', '--ttl', '-y', '--no-confirm', '-u', '--update', '-x', '--export', '-w', '--write-clipboard')
-    $pubOptions = @('-s', '--slug', '-i', '--title', '-t', '--ttl', '-u', '--update', '-y', '--no-confirm')
+    $pubOptions = @('-s', '--slug', '-i', '--title', '-p', '--topic', '-t', '--ttl', '-u', '--update', '-y', '--no-confirm')
     $lsOptions = @('-x', '--export')
     $topicSubcommands = @('new', 'ls', 'refresh', 'rm')
     $shells = @('bash', 'zsh', 'powershell')

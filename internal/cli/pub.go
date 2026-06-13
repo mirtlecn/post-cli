@@ -19,11 +19,13 @@ import (
 var nowFunc = time.Now
 
 const pubDirectoryConcurrency = 5
+const pubUsage = "usage: post pub [-p|--topic <topic>] [-t|--ttl <minutes>] [-s|--slug <path>] [-i|--title <title>] [-u|--update] [-y|--no-confirm] <path>"
 
 type pubOptions struct {
 	FilePath    string
 	Slug        string
 	Title       string
+	Topic       string
 	TTL         *int
 	SkipConfirm bool
 	Update      bool
@@ -53,6 +55,13 @@ func parsePubOptions(args []string) (pubOptions, error) {
 			}
 			options.Slug = value
 			index = nextIndex
+		case "-p", "--topic":
+			value, nextIndex, err := nextValue(expandedArgs, index)
+			if err != nil {
+				return pubOptions{}, fmt.Errorf("option %s requires a value", arg)
+			}
+			options.Topic = value
+			index = nextIndex
 		case "-t", "--ttl":
 			value, nextIndex, err := nextValue(expandedArgs, index)
 			if err != nil {
@@ -73,7 +82,7 @@ func parsePubOptions(args []string) (pubOptions, error) {
 		case "--":
 			index++
 			if index >= len(expandedArgs) {
-				return pubOptions{}, fmt.Errorf("usage: post pub [-t|--ttl <minutes>] [-s|--slug <path>] [-i|--title <title>] [-u|--update] [-y|--no-confirm] <path>")
+				return pubOptions{}, fmt.Errorf(pubUsage)
 			}
 			if options.FilePath != "" || index+1 != len(expandedArgs) {
 				return pubOptions{}, fmt.Errorf("pub command accepts a single file path")
@@ -93,7 +102,7 @@ func parsePubOptions(args []string) (pubOptions, error) {
 	}
 
 	if options.FilePath == "" {
-		return pubOptions{}, fmt.Errorf("usage: post pub [-t|--ttl <minutes>] [-s|--slug <path>] [-i|--title <title>] [-u|--update] [-y|--no-confirm] <path>")
+		return pubOptions{}, fmt.Errorf(pubUsage)
 	}
 
 	return options, nil
@@ -112,9 +121,9 @@ func (app *App) runPub(
 		return err
 	}
 
-	topic := cfg.PubTopic
-	if topic == "" {
-		return fmt.Errorf("POST_PUB_TOPIC or pub_topic must be set for post pub")
+	topic, explicitTopic, err := resolvePubTopic(options, cfg)
+	if err != nil {
+		return err
 	}
 
 	fileInfo, err := os.Stat(options.FilePath)
@@ -123,7 +132,13 @@ func (app *App) runPub(
 	}
 
 	if fileInfo.IsDir() {
-		return app.runPubDirectory(ctx, service, options, stdinTTY, host, topic)
+		return app.runPubDirectory(ctx, service, options, stdinTTY, host, topic, explicitTopic)
+	}
+
+	if explicitTopic {
+		if _, _, err := ensurePubTopic(ctx, service, topic, defaultPubTopicTitle(topic)); err != nil {
+			return err
+		}
 	}
 
 	return app.runCreate(ctx, service, post.NewOptions{
@@ -158,23 +173,19 @@ func (app *App) runPubDirectory(
 	options pubOptions,
 	stdinTTY bool,
 	host string,
-	parentTopic string,
+	topic string,
+	explicitTopic bool,
 ) error {
 	directoryName, err := resolvePubDirectoryName(options.FilePath)
 	if err != nil {
 		return err
 	}
 
-	childSlug := options.Slug
-	if childSlug == "" {
-		childSlug = metadata.GenerateSlugFromTitle(directoryName)
-	}
-	topicPath := parentTopic + "/" + childSlug
-	topicTitle := options.Title
-	if topicTitle == "" {
-		topicTitle = directoryName
+	if explicitTopic && options.Slug != "" {
+		return fmt.Errorf("--slug is not supported for directory publish when --topic is set")
 	}
 
+	topicPath, topicTitle, parentTopic := resolvePubDirectoryTopic(options, topic, explicitTopic, directoryName)
 	plan, err := planPubDirectory(options.FilePath, topicPath, topicTitle)
 	if err != nil {
 		return err
@@ -192,33 +203,72 @@ func (app *App) runPubDirectory(
 		}
 	}
 
-	topicExists, err := service.TopicExists(ctx, plan.TopicPath)
+	topicCreated, topicResult, err := ensurePubTopic(ctx, service, plan.TopicPath, plan.TopicTitle)
 	if err != nil {
 		return err
-	}
-	var topicResult post.Result
-	if !topicExists {
-		topicResult, err = service.New(ctx, post.NewOptions{
-			Slug:        plan.TopicPath,
-			Title:       plan.TopicTitle,
-			Type:        "topic",
-			SkipConfirm: true,
-		})
-		if err != nil {
-			return err
-		}
 	}
 
 	if err := app.uploadPubDirectoryEntries(ctx, service, plan.Entries, plan.TopicPath, options.TTL, options.Update); err != nil {
 		return err
 	}
 
-	if !topicExists {
+	if topicCreated {
 		app.writeCreateResult(topicResult)
 		return nil
 	}
 	app.writeCreateResult(post.Result{Stdout: buildPubDirectoryTopicURL(host, plan.TopicPath) + "\n"})
 	return nil
+}
+
+func resolvePubTopic(options pubOptions, cfg config.Config) (string, bool, error) {
+	if options.Topic != "" {
+		return options.Topic, true, nil
+	}
+	if cfg.PubTopic != "" {
+		return cfg.PubTopic, false, nil
+	}
+	return "", false, fmt.Errorf("-p/--topic, POST_PUB_TOPIC, or pub_topic must be set for post pub")
+}
+
+func resolvePubDirectoryTopic(options pubOptions, topic string, explicitTopic bool, directoryName string) (string, string, string) {
+	if explicitTopic {
+		title := options.Title
+		if title == "" {
+			title = defaultPubTopicTitle(topic)
+		}
+		return topic, title, ""
+	}
+
+	childSlug := options.Slug
+	if childSlug == "" {
+		childSlug = metadata.GenerateSlugFromTitle(directoryName)
+	}
+	topicTitle := options.Title
+	if topicTitle == "" {
+		topicTitle = directoryName
+	}
+	return topic + "/" + childSlug, topicTitle, topic
+}
+
+func ensurePubTopic(ctx context.Context, service *post.Service, topicPath string, topicTitle string) (bool, post.Result, error) {
+	topicExists, err := service.TopicExists(ctx, topicPath)
+	if err != nil {
+		return false, post.Result{}, err
+	}
+	if topicExists {
+		return false, post.Result{}, nil
+	}
+
+	topicResult, err := service.New(ctx, post.NewOptions{
+		Slug:        topicPath,
+		Title:       topicTitle,
+		Type:        "topic",
+		SkipConfirm: true,
+	})
+	if err != nil {
+		return false, post.Result{}, err
+	}
+	return true, topicResult, nil
 }
 
 func (app *App) uploadPubDirectoryEntries(
@@ -458,6 +508,15 @@ func buildPubDirectoryTopicURL(host string, topicPath string) string {
 	return strings.TrimRight(host, "/") + "/" + topicPath
 }
 
+func defaultPubTopicTitle(topicPath string) string {
+	trimmedTopicPath := strings.Trim(topicPath, "/")
+	if trimmedTopicPath == "" {
+		return topicPath
+	}
+	parts := strings.Split(trimmedTopicPath, "/")
+	return parts[len(parts)-1]
+}
+
 func resolvePubDirectoryName(path string) (string, error) {
 	cleanPath := filepath.Clean(path)
 	absolutePath, err := filepath.Abs(cleanPath)
@@ -486,7 +545,9 @@ func writePubDirectoryConfirmPreview(
 		fileCount++
 	}
 
-	writePubConfirmField(writer, "parent topic", parentTopic)
+	if parentTopic != "" {
+		writePubConfirmField(writer, "parent topic", parentTopic)
+	}
 	writePubConfirmField(writer, "topic", topicPath)
 	writePubConfirmField(writer, "title", topicTitle)
 	writePubConfirmField(writer, "files", strconv.Itoa(len(entries)))

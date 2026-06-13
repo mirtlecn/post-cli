@@ -69,8 +69,9 @@ Options for shortcut commands:
   -w, --write-clipboard          Disable default clipboard write for shortcut commands
 
 Options for 'pub':
-  -s, --slug <path>              Override item slug, or child topic slug for folder publish
+  -s, --slug <path>              Override item slug, or child topic slug when --topic is not set
   -i, --title <title>            Override inferred title, or child topic title for folder publish
+  -p, --topic <topic>            Publish into this topic; created if missing
   -t, --ttl <minutes>            Optional TTL override
   -u, --update                   Overwrite if slug already exists
   -y, --no-confirm               Skip confirmation prompt
@@ -81,10 +82,10 @@ File metadata inference:
   slug                           --slug -> front matter slug -> generated from title
 
 Pub topic inference:
-  topic                          POST_PUB_TOPIC -> config pub_topic -> fail
+  topic                          --topic -> POST_PUB_TOPIC -> config pub_topic -> fail
 
 Folder publish:
-  topic path                     <pub_topic>/<folder_name-or-slug>
+  topic path                     --topic, or <pub_topic>/<folder_name-or-slug>
   markdown files                 upload as md2html
   non-hidden files               upload as file
   hidden files and directories   skipped
@@ -126,7 +127,9 @@ Examples:
   post html '<h1>Hello</h1>'
   post html -f snippet.html
   post pub ./note.md
+  post pub -p notes ./note.md
   post pub ./notes
+  post pub -p notes ./notes
   post pub -yu ./notes
   post text -p anime -i "Quick Note" "topic item"
   post file -p anime -i "Poster Pack" ./poster.png

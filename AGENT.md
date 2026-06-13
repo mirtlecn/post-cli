@@ -106,9 +106,11 @@ Implementation constraints:
 `post pub` has one extra rule:
 
 - `topic`
+  - `--topic`
   - `POST_PUB_TOPIC`
   - config `pub_topic`
   - otherwise fail
+- Explicit `post pub --topic` creates the topic when missing; directory publish uses that exact topic instead of creating `<pub_topic>/<folder_name-or-slug>`.
 
 ## Key Behavioral Conventions
 
